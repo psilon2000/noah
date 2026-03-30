@@ -68,17 +68,17 @@
 
 ### 6. Проверить staging после публикации
 
-- [ ] После локально зеленого `pnpm test:e2e` опубликовать изменения на текущий staging branch и поднять compose stack на staging.
-- [ ] Проверить staging `/health`, `/rooms/demo-room`, `/control-plane` и доступность публичных `livekit`/`room-state` endpoint'ов.
-- [ ] Запустить `pnpm test:e2e:staging` против актуального staging URL.
-- [ ] Ручно проверить ключевые staging flows: room load, selector/navigation, presence smoke, control-plane smoke.
-- [ ] Если изменение затрагивает scene delivery, отдельно проверить минимум `Hall` и `BlueOffice` на staging.
+- [x] После локально зеленого `pnpm test:e2e` опубликовать изменения на текущий staging branch и поднять compose stack на staging.
+- [x] Проверить staging `/health`, `/rooms/demo-room`, `/control-plane` и доступность публичных `livekit`/`room-state` endpoint'ов.
+- [x] Запустить `pnpm test:e2e:staging` против актуального staging URL.
+- [x] Ручно проверить ключевые staging flows: room load, selector/navigation, presence smoke, control-plane smoke.
+- [x] Если изменение затрагивает scene delivery, отдельно проверить минимум `Hall` и `BlueOffice` на staging.
 
 ### 7. Зафиксировать rollback path
 
-- [ ] Зафиксировать быстрый rollback для staging на предыдущий git commit или предыдущие compose/image artifacts.
-- [ ] Убедиться, что rollback не трогает persistent data volumes `postgres` и `minio` без явной команды.
-- [ ] Подготовить пошаговую команду отката для неуспешного rollout по выбранному deploy path (`git checkout <prev>` + `docker compose build` + `docker compose up -d`).
+- [x] Зафиксировать быстрый rollback для staging на предыдущий git commit или предыдущие compose/image artifacts.
+- [x] Убедиться, что rollback не трогает persistent data volumes `postgres` и `minio` без явной команды.
+- [x] Подготовить пошаговую команду отката для неуспешного rollout по выбранному deploy path (`git checkout <prev>` + `docker compose build` + `docker compose up -d`).
 - [ ] Проверить rollback smoke: после отката снова доступны `/health` и базовый room load.
 
 ## Затронутые файлы/модули
@@ -109,8 +109,8 @@
 
 - **E2E**
 - [x] Перед staging publish проходит локальный `pnpm test:e2e`.
-- [ ] После staging deploy проходит `pnpm test:e2e:staging`.
-- [ ] На staging вручную подтверждены room load, selector/navigation, control-plane smoke.
+- [x] После staging deploy проходит `pnpm test:e2e:staging`.
+- [x] На staging вручную подтверждены room load, selector/navigation, control-plane smoke.
 
 - **Негативные кейсы**
 - [ ] При отсутствии обязательных env vars compose stack падает предсказуемо и это видно в логах конкретного сервиса.
@@ -137,6 +137,6 @@
 - [x] Есть compose-based stack для `caddy`, `api`, `room-state`, `livekit`, `postgres`, `minio`.
 - [x] Stack локально поднимается одной командой и проходит базовый integration smoke.
 - [x] Локально проходит `pnpm test:e2e` после перехода на compose path.
-- [ ] Staging опубликован через compose-based deploy path.
-- [ ] После staging rollout проходит `pnpm test:e2e:staging`.
+- [x] Staging опубликован через compose-based deploy path.
+- [x] После staging rollout проходит `pnpm test:e2e:staging`.
 - [ ] Для неуспешного rollout есть документированный rollback path, проверенный smoke-проверкой.
