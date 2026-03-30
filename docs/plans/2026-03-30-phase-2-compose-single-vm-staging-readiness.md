@@ -140,3 +140,12 @@
 - [x] Staging опубликован через compose-based deploy path.
 - [x] После staging rollout проходит `pnpm test:e2e:staging`.
 - [x] Для неуспешного rollout есть документированный rollback path, проверенный smoke-проверкой.
+
+## Итог выполнения
+
+- Phase 2 завершена: локальный compose stack, staging publish path, staging smoke, `pnpm test:e2e:staging` и rollback smoke были доведены до рабочего состояния.
+- Рабочие compose-артефакты: `infra/docker/compose.staging.yml`, `infra/docker/.env.staging.example`, `infra/docker/Caddyfile.local`, `infra/docker/Caddyfile.staging`, `infra/docker/minio-bootstrap.sh`, `infra/yandex/cloud-init/staging-compose.yaml`, `infra/yandex/scripts/provision-staging-compose.sh`.
+- Финальный проверенный compose staging host после фазы: `noah-stage-compose-v11` (`89.169.161.91`) с прямым smoke path через `http://<ip>:4000`.
+- Для staging e2e подтвердился рабочий запуск через `BASE_URL=http://<ip>:4000 PLAYWRIGHT_NO_WEB_SERVER=1 pnpm test:e2e:staging`.
+- Отдельно подтверждены scene-room проверки для `Hall` и `BlueOffice`; для `BlueOffice` нужно ждать диагностики дольше, чем для простых комнат.
+- Важные инфраструктурные инсайты: cloud-init должен создавать реального SSH user с `ssh_authorized_keys`, а MinIO image на staging надежнее тянуть с Docker Hub (`minio/minio`), а не с `quay.io`.
