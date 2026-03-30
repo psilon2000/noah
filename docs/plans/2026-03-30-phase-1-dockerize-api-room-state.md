@@ -37,7 +37,7 @@
 
 ### Подготовка Docker context
 
-- [ ] Зафиксировать, какие workspace файлы реально нужны для сборки `api` и `room-state`: root `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, app `package.json`, shared packages, `tsconfig*`.
+- [x] Зафиксировать, какие workspace файлы реально нужны для сборки `api` и `room-state`: root `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, app `package.json`, shared packages, `tsconfig*`.
 - [x] Зафиксировать минимальный набор env vars для локального smoke запуска `api` и `room-state` контейнеров.
 - [x] Добавить корневой `.dockerignore`, который исключает `.git`, `node_modules`, `dist`, `test-results`, `.turbo`, `.next`, `research/` и прочие тяжелые локальные артефакты.
 - [x] Проверить, что `.dockerignore` не вырезает нужные runtime public assets и scene bundles, которые действительно должны попасть в `api` image.
@@ -99,7 +99,7 @@
 - [x] `room-state` image не зависит от локального `pnpm`/workspace на хосте после сборки.
 
 - **Негативные кейсы**
-- [ ] При пропуске обязательных env vars контейнер падает предсказуемо или явно сигнализирует о неверной конфигурации.
+- [x] При пропуске обязательных env vars контейнер падает предсказуемо или явно сигнализирует о неверной конфигурации.
 - [x] `HEALTHCHECK` не показывает false green до реального старта процесса.
 - [x] `.dockerignore` не ломает сборку исключением обязательных файлов.
 
