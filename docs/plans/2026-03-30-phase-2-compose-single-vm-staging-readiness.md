@@ -79,7 +79,7 @@
 - [x] Зафиксировать быстрый rollback для staging на предыдущий git commit или предыдущие compose/image artifacts.
 - [x] Убедиться, что rollback не трогает persistent data volumes `postgres` и `minio` без явной команды.
 - [x] Подготовить пошаговую команду отката для неуспешного rollout по выбранному deploy path (`git checkout <prev>` + `docker compose build` + `docker compose up -d`).
-- [ ] Проверить rollback smoke: после отката снова доступны `/health` и базовый room load.
+- [x] Проверить rollback smoke: после отката снова доступны `/health` и базовый room load.
 
 ## Затронутые файлы/модули
 
@@ -139,4 +139,4 @@
 - [x] Локально проходит `pnpm test:e2e` после перехода на compose path.
 - [x] Staging опубликован через compose-based deploy path.
 - [x] После staging rollout проходит `pnpm test:e2e:staging`.
-- [ ] Для неуспешного rollout есть документированный rollback path, проверенный smoke-проверкой.
+- [x] Для неуспешного rollout есть документированный rollback path, проверенный smoke-проверкой.
