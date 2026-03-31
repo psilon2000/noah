@@ -29,61 +29,61 @@
 
 ### 1. Зафиксировать productized publish contract
 
-- [ ] Зафиксировать сущности и поля publish flow: `bundleId`, `version`, `storageKey`, `publicUrl`, `provider`, `status`, `createdAt`, `isCurrent`.
-- [ ] Зафиксировать version policy: что считается current version, как room связывается с bundle, и когда current version обновляется.
-- [ ] Зафиксировать compatibility rule: room manifest все еще строится из `room.sceneBundleUrl`, а publish flow только управляет тем, какой URL туда попадает.
-- [ ] Зафиксировать, какие шаги publish flow обязательны всегда, а какие manual/operational.
-- [ ] Зафиксировать формат version identifier и правила uniqueness внутри `bundleId`.
+- [x] Зафиксировать сущности и поля publish flow: `bundleId`, `version`, `storageKey`, `publicUrl`, `provider`, `status`, `createdAt`, `isCurrent`.
+- [x] Зафиксировать version policy: что считается current version, как room связывается с bundle, и когда current version обновляется.
+- [x] Зафиксировать compatibility rule: room manifest все еще строится из `room.sceneBundleUrl`, а publish flow только управляет тем, какой URL туда попадает.
+- [x] Зафиксировать, какие шаги publish flow обязательны всегда, а какие manual/operational.
+- [x] Зафиксировать формат version identifier и правила uniqueness внутри `bundleId`.
 
 ### 2. Расширить metadata model и API
 
-- [ ] Добавить недостающие поля/таблицы для bundle versioning policy, если текущей `scene_bundles` metadata недостаточно.
-- [ ] Добавить API path для productized publish: создать новую bundle version, получить список versions и переключить current version.
-- [ ] Добавить API path для room -> bundle binding через current/versioned semantics, сохранив legacy direct URL path.
-- [ ] Зафиксировать error semantics: broken version switch, missing current version, conflict on duplicate version.
-- [ ] Явно зафиксировать migration/backfill policy для уже существующих bundle records Phase 3: без auto-backfill или с минимальным status-default path.
+- [x] Добавить недостающие поля/таблицы для bundle versioning policy, если текущей `scene_bundles` metadata недостаточно.
+- [x] Добавить API path для productized publish: создать новую bundle version, получить список versions и переключить current version.
+- [x] Добавить API path для room -> bundle binding через current/versioned semantics, сохранив legacy direct URL path.
+- [x] Зафиксировать error semantics: broken version switch, missing current version, conflict on duplicate version.
+- [x] Явно зафиксировать migration/backfill policy для уже существующих bundle records Phase 3: без auto-backfill или с минимальным status-default path.
 
 ### 3. Обновить control-plane до productized publish flow
 
-- [ ] Показать для room не только список bundles, но и current version/current binding state.
-- [ ] Добавить минимальный UI flow для выбора bundle и version при bind к room.
-- [ ] Добавить минимальный publish metadata flow в control-plane без полноценного archive upload UI.
-- [ ] Убедиться, что старый create/update flow с прямым `sceneBundleUrl` остается рабочим.
+- [x] Показать для room не только список bundles, но и current version/current binding state.
+- [x] Добавить минимальный UI flow для выбора bundle и version при bind к room.
+- [x] Добавить минимальный publish metadata flow в control-plane без полноценного archive upload UI.
+- [x] Убедиться, что старый create/update flow с прямым `sceneBundleUrl` остается рабочим.
 
 ### 4. Отделить bundle publish от code deploy
 
-- [ ] Зафиксировать, что обновление bundle metadata/current version не требует пересборки Docker images.
-- [ ] Проверить publish/update flow на staging без нового app image rollout.
-- [ ] Проверить, что room, привязанная к новой bundle version, начинает отдавать новый manifest URL без app redeploy.
+- [x] Зафиксировать, что обновление bundle metadata/current version не требует пересборки Docker images.
+- [x] Проверить publish/update flow на staging без нового app image rollout.
+- [x] Проверить, что room, привязанная к новой bundle version, начинает отдавать новый manifest URL без app redeploy.
 
 ### 5. Добавить cleanup policy для старых versions
 
-- [ ] Зафиксировать cleanup policy: сколько старых versions держим, что only-deprecate, что нельзя удалять, если room еще привязана.
-- [ ] Добавить API/operational path для mark-as-obsolete / cleanup-ready state.
-- [ ] Проверить, что cleanup policy не ломает rooms, которые еще используют старую version.
-- [ ] Cleanup в этой фазе только переводит старые versions в metadata state `obsolete` / `cleanup-ready` без физического удаления blob objects.
+- [x] Зафиксировать cleanup policy: сколько старых versions держим, что only-deprecate, что нельзя удалять, если room еще привязана.
+- [x] Добавить API/operational path для mark-as-obsolete / cleanup-ready state.
+- [x] Проверить, что cleanup policy не ломает rooms, которые еще используют старую version.
+- [x] Cleanup в этой фазе только переводит старые versions в metadata state `obsolete` / `cleanup-ready` без физического удаления blob objects.
 
 ### 6. Подготовить switch guide MinIO -> Yandex Object Storage
 
-- [ ] Описать обязательные env/config differences между `minio-default` и `s3-compatible`/`Yandex Object Storage`.
-- [ ] Зафиксировать migration/switch sequence без изменения runtime contract.
-- [ ] Зафиксировать manual smoke checklist после switch.
-- [ ] Убедиться, что docs позволяют повторить switch без чтения кода.
+- [x] Описать обязательные env/config differences между `minio-default` и `s3-compatible`/`Yandex Object Storage`.
+- [x] Зафиксировать migration/switch sequence без изменения runtime contract.
+- [x] Зафиксировать manual smoke checklist после switch.
+- [x] Убедиться, что docs позволяют повторить switch без чтения кода.
 
 ### 7. Проверить local/staging flow
 
-- [ ] Локально проверить productized publish flow на MinIO default backend.
-- [ ] Проверить version switch для room без image rebuild.
-- [ ] Прогнать локальный `pnpm test:e2e` после изменений.
-- [ ] Опубликовать изменения на staging.
-- [ ] Прогнать `pnpm test:e2e:staging`.
-- [ ] Ручно проверить legacy room, room с current version binding и room после version switch.
+- [x] Локально проверить productized publish flow на MinIO default backend.
+- [x] Проверить version switch для room без image rebuild.
+- [x] Прогнать локальный `pnpm test:e2e` после изменений.
+- [x] Опубликовать изменения на staging.
+- [x] Прогнать `pnpm test:e2e:staging`.
+- [x] Ручно проверить legacy room, room с current version binding и room после version switch.
 
 ### 8. Зафиксировать rollback path
 
-- [ ] Зафиксировать rollback path для metadata/versioning changes без удаления `postgres`/`minio` volumes.
-- [ ] Проверить rollback smoke на staging: `/health`, `demo-room`, одна legacy room, одна version-bound room.
-- [ ] Зафиксировать, как откатывается неудачный version switch без app redeploy.
+- [x] Зафиксировать rollback path для metadata/versioning changes без удаления `postgres`/`minio` volumes.
+- [x] Проверить rollback smoke на staging: `/health`, `demo-room`, одна legacy room, одна version-bound room.
+- [x] Зафиксировать, как откатывается неудачный version switch без app redeploy.
 
 ## Затронутые файлы/модули
 
@@ -103,25 +103,25 @@
 ## Тест-план
 
 - **Unit / API contract**
-- [ ] Тесты на version/current semantics для bundle metadata.
-- [ ] Тесты на room binding через current version и на backward-compatible direct URL path.
-- [ ] Тесты на ошибки duplicate version / missing current version / unsafe cleanup.
+- [x] Тесты на version/current semantics для bundle metadata.
+- [x] Тесты на room binding через current version и на backward-compatible direct URL path.
+- [x] Тесты на ошибки duplicate version / missing current version / unsafe cleanup.
 
 - **Integration / local**
-- [ ] Local MinIO publish flow создает новую bundle version и current binding без image rebuild.
-- [ ] Version switch обновляет room manifest URL предсказуемо.
-- [ ] Локально проходит `pnpm test:e2e`.
+- [x] Local MinIO publish flow создает новую bundle version и current binding без image rebuild.
+- [x] Version switch обновляет room manifest URL предсказуемо.
+- [x] Локально проходит `pnpm test:e2e`.
 
 - **Staging**
-- [ ] После deploy проходит `pnpm test:e2e:staging`.
-- [ ] Existing restored scene catalog не ломается.
-- [ ] Productized publish flow проверен хотя бы для одного bundle/version switch на staging.
+- [x] После deploy проходит `pnpm test:e2e:staging`.
+- [x] Existing restored scene catalog не ломается.
+- [x] Productized publish flow проверен хотя бы для одного bundle/version switch на staging.
 
 - **Негативные кейсы**
-- [ ] Broken version switch не оставляет room в битом manifest state.
-- [ ] Cleanup не удаляет version, пока она связана с room.
-- [ ] Legacy room с прямым `sceneBundleUrl` не зависит от новой version policy.
-- [ ] Switch guide path не требует code changes при переходе `MinIO -> Yandex Object Storage`.
+- [x] Broken version switch не оставляет room в битом manifest state.
+- [x] Cleanup не удаляет version, пока она связана с room.
+- [x] Legacy room с прямым `sceneBundleUrl` не зависит от новой version policy.
+- [x] Switch guide path не требует code changes при переходе `MinIO -> Yandex Object Storage`.
 
 ## Риски и откаты (roll-back)
 
@@ -136,12 +136,20 @@
 
 ## Definition of done для Phase 7
 
-- [ ] Есть productized publish flow для scene bundles через API/control-plane поверх существующей metadata/storage layer.
-- [ ] Room -> bundle binding поддерживает понятную current/version policy без ломки legacy URL path.
-- [ ] Bundle publish/version switch не требует пересборки app images.
-- [ ] Room manifest по-прежнему строится через `room.sceneBundleUrl` и не требует runtime lookup current version.
-- [ ] Есть зафиксированная cleanup policy для старых bundle versions.
-- [ ] Есть понятный switch guide `MinIO -> Yandex Object Storage`.
-- [ ] Локально проходит `pnpm test:e2e`.
-- [ ] На staging проходит `pnpm test:e2e:staging` и проверен хотя бы один productized version switch flow.
-- [ ] Rollback path для metadata/versioning изменений задокументирован и проверен smoke-проверкой.
+- [x] Есть productized publish flow для scene bundles через API/control-plane поверх существующей metadata/storage layer.
+- [x] Room -> bundle binding поддерживает понятную current/version policy без ломки legacy URL path.
+- [x] Bundle publish/version switch не требует пересборки app images.
+- [x] Room manifest по-прежнему строится через `room.sceneBundleUrl` и не требует runtime lookup current version.
+- [x] Есть зафиксированная cleanup policy для старых bundle versions.
+- [x] Есть понятный switch guide `MinIO -> Yandex Object Storage`.
+- [x] Локально проходит `pnpm test:e2e`.
+- [x] На staging проходит `pnpm test:e2e:staging` и проверен хотя бы один productized version switch flow.
+- [x] Rollback path для metadata/versioning изменений задокументирован и проверен smoke-проверкой.
+
+## Итог выполнения
+
+- Phase 7 завершена: publish flow для scene bundles стал productized поверх существующей metadata/storage abstraction без изменения runtime contract.
+- Productized flow остается metadata-driven: новые versions регистрируются по заранее известному `storageKey`/`publicUrl`, room binding и version switch просто обновляют `room.sceneBundleUrl`.
+- API теперь поддерживает version lifecycle: list versions, create version, set current version, mark status (`active`, `obsolete`, `cleanup-ready`).
+- Control-plane поддерживает минимальный productized UI flow: publish новой version metadata, выбор version при bind, переключение current version и mark obsolete.
+- Staging verification подтверждена без app rebuild: demo bundle `productized-demo` был опубликован на staging, привязан к room, затем current version переключена с `v2` на `v1`, и manifest URL изменился без image redeploy.
