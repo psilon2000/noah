@@ -30,19 +30,19 @@
 
 ### 1. Зафиксировать storage contract
 
-- [ ] Зафиксировать bundle metadata shape: `bundleId`, `storageKey`, `publicUrl`, `checksum`, `sizeBytes`, `contentType`, `provider`, `version`, `createdAt`.
-- [ ] Зафиксировать key layout для MinIO/S3, например `scenes/<bundle-id>/<version>/scene.json` и соседние bundle files.
-- [ ] Зафиксировать, какие env vars обязательны для default MinIO path и какие добавляются для внешнего S3-compatible backend (`endpoint`, `region`, `bucket`, `access key`, `secret key`, `public base URL`, `force path style`).
-- [ ] Зафиксировать compatibility rule: existing `room.sceneBundleUrl` продолжает работать без миграции.
-- [ ] Зафиксировать version rule: можно иметь несколько versions на один `bundleId`, но bind path в этой фазе всегда выбирает один явный `publicUrl` и сохраняет его в room record.
+- [x] Зафиксировать bundle metadata shape: `bundleId`, `storageKey`, `publicUrl`, `checksum`, `sizeBytes`, `contentType`, `provider`, `version`, `createdAt`.
+- [x] Зафиксировать key layout для MinIO/S3, например `scenes/<bundle-id>/<version>/scene.json` и соседние bundle files.
+- [x] Зафиксировать, какие env vars обязательны для default MinIO path и какие добавляются для внешнего S3-compatible backend (`endpoint`, `region`, `bucket`, `access key`, `secret key`, `public base URL`, `force path style`).
+- [x] Зафиксировать compatibility rule: existing `room.sceneBundleUrl` продолжает работать без миграции.
+- [x] Зафиксировать version rule: можно иметь несколько versions на один `bundleId`, но bind path в этой фазе всегда выбирает один явный `publicUrl` и сохраняет его в room record.
 
 ### 2. Подготовить metadata layer в `apps/api`
 
 - [x] Добавить новую сущность bundle metadata в `apps/api/src/storage.ts` и интерфейс `Storage` для list/get/create/update bundle records.
 - [x] Добавить память-based реализацию bundle metadata для `MemoryStorage`.
 - [x] Добавить `postgres` schema/init path для bundle metadata таблицы без разрушения текущих room tables.
-- [ ] Зафиксировать migration/init behavior так, чтобы новый staging deploy создавал недостающую таблицу автоматически или предсказуемо падал с явной ошибкой.
-- [ ] Явно зафиксировать, что существующие room records не мигрируются автоматически в новую bundle metadata table; backfill остается вне scope Phase 3.
+- [x] Зафиксировать migration/init behavior так, чтобы новый staging deploy создавал недостающую таблицу автоматически или предсказуемо падал с явной ошибкой.
+- [x] Явно зафиксировать, что существующие room records не мигрируются автоматически в новую bundle metadata table; backfill остается вне scope Phase 3.
 
 ### 3. Вынести S3-compatible abstraction
 
@@ -56,13 +56,13 @@
 - [x] Добавить API endpoint(ы) для регистрации bundle metadata и получения списка/деталей bundles.
 - [x] Добавить минимальный publish flow: API принимает metadata payload для bundle по заранее известному `storageKey`/public URL и вычисляет/возвращает итоговый public URL по выбранному provider.
 - [x] Добавить возможность привязать room к bundle metadata без ручного копирования URL, но сохранить старый room update path с прямым `sceneBundleUrl`.
-- [ ] Зафиксировать error semantics: missing bucket/key/provider config должны давать явную API error, а не тихий fallback.
+- [x] Зафиксировать error semantics: missing bucket/key/provider config должны давать явную API error, а не тихий fallback.
 
 ### 5. Обновить control-plane минимально и без оверинжиниринга
 
 - [x] Добавить в `apps/control-plane` read-only отображение bundle metadata для выбранной room, если bundle зарегистрирован через новый API path.
 - [x] При необходимости добавить простой manual bind flow: выбрать bundle id или вставить URL, без полноценного browser upload UI в этой фазе.
-- [ ] Убедиться, что existing room create/update flow с `sceneBundleUrl` не ломается.
+- [x] Убедиться, что existing room create/update flow с `sceneBundleUrl` не ломается.
 
 ### 6. Проверить local MinIO path
 
@@ -73,9 +73,9 @@
 
 ### 7. Проверить alternate S3-compatible path
 
-- [ ] Добавить documented env profile для внешнего S3-compatible backend без смены runtime contract.
-- [ ] Проверить хотя бы smoke-уровень формирования public URL/config для внешнего backend path.
-- [ ] Если полноценный live external bucket в этой фазе недоступен, зафиксировать contract test/mock coverage и ручную команду для реальной проверки позже.
+- [x] Добавить documented env profile для внешнего S3-compatible backend без смены runtime contract.
+- [x] Проверить хотя бы smoke-уровень формирования public URL/config для внешнего backend path.
+- [x] Если полноценный live external bucket в этой фазе недоступен, зафиксировать contract test/mock coverage и ручную команду для реальной проверки позже.
 
 ### 8. Проверить staging и publish flow
 
@@ -83,13 +83,13 @@
 - [x] Проверить, что existing scene rooms не сломались после bundle metadata/storage abstraction изменений.
 - [x] Проверить staging publish flow хотя бы для одного bundle через default MinIO path.
 - [x] Прогнать `pnpm test:e2e:staging`.
-- [ ] Ручно проверить минимум одну newly bound room и одну legacy room с прямым `sceneBundleUrl`.
+- [x] Ручно проверить минимум одну newly bound room и одну legacy room с прямым `sceneBundleUrl`.
 
 ### 9. Зафиксировать rollback path
 
-- [ ] Зафиксировать rollback path для API/schema/provider changes без удаления `postgres` и `minio` volumes.
-- [ ] Убедиться, что rollback не ломает existing rooms, даже если новые bundle metadata записи уже появились.
-- [ ] Проверить rollback smoke: `/health`, `demo-room`, и одна existing scene room после отката.
+- [x] Зафиксировать rollback path для API/schema/provider changes без удаления `postgres` и `minio` volumes.
+- [x] Убедиться, что rollback не ломает existing rooms, даже если новые bundle metadata записи уже появились.
+- [x] Проверить rollback smoke: `/health`, `demo-room`, и одна existing scene room после отката.
 
 ## Затронутые файлы/модули
 
@@ -111,27 +111,27 @@
 ## Тест-план
 
 - **Unit / API contract**
-- [ ] Тесты на bundle metadata CRUD в `MemoryStorage` и `PostgresStorage`.
-- [ ] Тесты на provider config validation: MinIO default path и S3-compatible path.
-- [ ] Тесты на backward compatibility: room с прямым `sceneBundleUrl` продолжает получать тот же manifest.
+- [x] Тесты на bundle metadata CRUD в `MemoryStorage` и `PostgresStorage`.
+- [x] Тесты на provider config validation: MinIO default path и S3-compatible path.
+- [x] Тесты на backward compatibility: room с прямым `sceneBundleUrl` продолжает получать тот же manifest.
 
 - **Integration / local compose**
-- [ ] Local compose stack с MinIO default backend поднимается без дополнительной ручной настройки.
-- [ ] Bundle metadata API возвращает корректный public URL.
-- [ ] Room, привязанная к bundle через новый path, получает валидный `sceneBundle.url` в manifest.
-- [ ] Локально проходит `pnpm test:e2e`.
+- [x] Local compose stack с MinIO default backend поднимается без дополнительной ручной настройки.
+- [x] Bundle metadata API возвращает корректный public URL.
+- [x] Room, привязанная к bundle через новый path, получает валидный `sceneBundle.url` в manifest.
+- [x] Локально проходит `pnpm test:e2e`.
 
 - **Staging**
 - [ ] После deploy проходит `pnpm test:e2e:staging`.
-- [ ] Existing restored scene catalog не ломается.
-- [ ] Минимум один bundle проходит publish/bind path на staging через default MinIO provider.
+- [x] Existing restored scene catalog не ломается.
+- [x] Минимум один bundle проходит publish/bind path на staging через default MinIO provider.
 
 - **Негативные кейсы**
-- [ ] При отсутствии обязательных storage env vars API явно сигнализирует `misconfigured_storage_provider` или эквивалентную ошибку.
-- [ ] При отсутствии bucket/key publish path падает предсказуемо, а не создает битую room binding.
-- [ ] При недоступном external S3 endpoint API возвращает явную operational error.
-- [ ] Legacy room с прямым `sceneBundleUrl` не зависит от новой metadata таблицы и не ломается, если provider path временно недоступен.
-- [ ] Bind через bundle metadata не ломает legacy room update/delete flow.
+- [x] При отсутствии обязательных storage env vars API явно сигнализирует `misconfigured_storage_provider` или эквивалентную ошибку.
+- [x] При отсутствии bucket/key publish path падает предсказуемо, а не создает битую room binding.
+- [x] При недоступном external S3 endpoint API возвращает явную operational error. В текущем scope это выражается через fail-fast config validation до bind/publish, так как live network upload не выполняется.
+- [x] Legacy room с прямым `sceneBundleUrl` не зависит от новой metadata таблицы и не ломается, если provider path временно недоступен.
+- [x] Bind через bundle metadata не ломает legacy room update/delete flow.
 
 ## Риски и откаты (roll-back)
 
@@ -148,12 +148,19 @@
 
 ## Definition of done для Phase 3
 
-- [ ] В `apps/api` есть storage abstraction для scene bundle metadata и blob/public URL provider path.
-- [ ] MinIO работает как default self-hosted backend.
-- [ ] Есть config-compatible path для внешнего S3-compatible backend.
-- [ ] Existing rooms с прямым `sceneBundleUrl` продолжают работать без миграции.
-- [ ] Есть минимальный publish/bind API path для bundle metadata.
-- [ ] Room manifest по-прежнему строится только из `room.sceneBundleUrl` и не требует bundle metadata lookup для legacy rooms.
-- [ ] Локально проходит `pnpm test:e2e`.
-- [ ] На staging проходит `pnpm test:e2e:staging` и хотя бы один publish flow через default MinIO provider.
-- [ ] Есть документированный rollback path, проверенный smoke-проверкой.
+- [x] В `apps/api` есть storage abstraction для scene bundle metadata и blob/public URL provider path.
+- [x] MinIO работает как default self-hosted backend.
+- [x] Есть config-compatible path для внешнего S3-compatible backend.
+- [x] Existing rooms с прямым `sceneBundleUrl` продолжают работать без миграции.
+- [x] Есть минимальный publish/bind API path для bundle metadata.
+- [x] Room manifest по-прежнему строится только из `room.sceneBundleUrl` и не требует bundle metadata lookup для legacy rooms.
+- [x] Локально проходит `pnpm test:e2e`.
+- [x] На staging проходит `pnpm test:e2e:staging` и хотя бы один publish flow через default MinIO provider.
+- [x] Есть документированный rollback path, проверенный smoke-проверкой.
+
+## Итог выполнения
+
+- Phase 3 завершена: bundle metadata layer, provider abstraction, minimal publish/bind API path, control-plane bind flow, local compose verification, staging verification и rollback smoke доведены до рабочего состояния.
+- Канонический runtime contract не менялся: manifest по-прежнему читает `room.sceneBundleUrl`, а bundle metadata только помогает вычислить и сохранить этот URL.
+- Default self-hosted provider подтвержден через MinIO path; config-compatible S3-compatible path задокументирован и покрыт contract tests на URL/config resolution.
+- Live external S3 bucket в этой фазе не поднимался; вместо этого зафиксированы env contract, provider validation и ручной smoke path для последующей реальной проверки.
