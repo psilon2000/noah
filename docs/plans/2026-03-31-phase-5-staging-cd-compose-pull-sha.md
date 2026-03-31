@@ -31,51 +31,51 @@
 
 ### 1. Зафиксировать deploy contract
 
-- [ ] Зафиксировать, какие image refs использует staging VM для `api` и `room-state`.
-- [ ] Зафиксировать способ передачи deploy SHA на VM: общий `IMAGE_TAG` или отдельные `API_IMAGE_TAG` / `ROOM_STATE_IMAGE_TAG`.
-- [ ] Зафиксировать, какие файлы на VM остаются стабильными (`compose`, `.env`, volumes), а что меняется при deploy.
-- [ ] Зафиксировать rule: staging deploy всегда идет по immutable SHA tag из registry.
+- [x] Зафиксировать, какие image refs использует staging VM для `api` и `room-state`.
+- [x] Зафиксировать способ передачи deploy SHA на VM: общий `IMAGE_TAG` или отдельные `API_IMAGE_TAG` / `ROOM_STATE_IMAGE_TAG`.
+- [x] Зафиксировать, какие файлы на VM остаются стабильными (`compose`, `.env`, volumes), а что меняется при deploy.
+- [x] Зафиксировать rule: staging deploy всегда идет по immutable SHA tag из registry.
 
 ### 2. Подготовить compose stack к pull-based deploy
 
-- [ ] Обновить `infra/docker/compose.staging.yml`, чтобы `api` и `room-state` использовали image refs из registry, а не `build` как основной staging path.
-- [ ] Сохранить локальный compose developer flow, не ломая local `build` use case.
-- [ ] Обновить `infra/docker/.env.staging.example` и remote `.env.staging` contract для registry image refs / image tag.
-- [ ] Зафиксировать registry login path для staging VM.
+- [x] Обновить `infra/docker/compose.staging.yml`, чтобы `api` и `room-state` использовали image refs из registry, а не `build` как основной staging path.
+- [x] Сохранить локальный compose developer flow, не ломая local `build` use case.
+- [x] Обновить `infra/docker/.env.staging.example` и remote `.env.staging` contract для registry image refs / image tag.
+- [x] Зафиксировать registry login path для staging VM.
 
 ### 3. Подготовить staging VM под registry deploy
 
-- [ ] Добавить на staging VM стабильный docker login path для `cr.yandex`.
-- [ ] Зафиксировать, как и где на VM хранится registry auth.
-- [ ] Убедиться, что compose VM умеет `docker compose pull` без ручного вмешательства.
-- [ ] Проверить, что persistent volumes `postgres`, `minio`, `caddy` не зависят от старого build-based path.
+- [x] Добавить на staging VM стабильный docker login path для `cr.yandex`.
+- [x] Зафиксировать, как и где на VM хранится registry auth.
+- [x] Убедиться, что compose VM умеет `docker compose pull` без ручного вмешательства.
+- [x] Проверить, что persistent volumes `postgres`, `minio`, `caddy` не зависят от старого build-based path.
 
 ### 4. Добавить GitHub Actions deploy workflow
 
-- [ ] Добавить workflow/job для staging deploy по SSH после успешного publish-ready path.
-- [ ] Передавать на VM конкретный image SHA tag, а не branch alias.
-- [ ] По SSH обновлять staging env/config и запускать `docker compose pull && docker compose up -d`.
-- [ ] Ограничить deploy workflow понятными triggers: вручную и/или push в staging branch, без deploy из PR.
+- [x] Добавить workflow/job для staging deploy по SSH после успешного publish-ready path.
+- [x] Передавать на VM конкретный image SHA tag, а не branch alias.
+- [x] По SSH обновлять staging env/config и запускать `docker compose pull && docker compose up -d`.
+- [x] Ограничить deploy workflow понятными triggers: вручную и/или push в staging branch, без deploy из PR.
 
 ### 5. Добавить post-deploy smoke
 
-- [ ] После deploy проверять `/health` на публичном staging URL.
-- [ ] Проверять room shell reachability хотя бы для `demo-room`.
-- [ ] Проверять `control-plane` reachability.
-- [ ] Явно падать, если post-deploy smoke не прошел.
+- [x] После deploy проверять `/health` на публичном staging URL.
+- [x] Проверять room shell reachability хотя бы для `demo-room`.
+- [x] Проверять `control-plane` reachability.
+- [x] Явно падать, если post-deploy smoke не прошел.
 
 ### 6. Подготовить rollback path
 
-- [ ] Зафиксировать rollback как повторный deploy предыдущего SHA image tag.
-- [ ] Убедиться, что rollback не требует rebuild на VM.
-- [ ] Проверить rollback smoke: `/health`, `demo-room`, `control-plane`.
-- [ ] Зафиксировать, где брать previous successful SHA для ручного/автоматического отката.
-- [ ] Зафиксировать, откуда deploy workflow берет previous successful SHA для rollback: workflow input, artifact, environment file или manual parameter.
+- [x] Зафиксировать rollback как повторный deploy предыдущего SHA image tag.
+- [x] Убедиться, что rollback не требует rebuild на VM.
+- [x] Проверить rollback smoke: `/health`, `demo-room`, `control-plane`.
+- [x] Зафиксировать, где брать previous successful SHA для ручного/автоматического отката.
+- [x] Зафиксировать, откуда deploy workflow берет previous successful SHA для rollback: workflow input, artifact, environment file или manual parameter.
 
 ### 7. Обновить документацию
 
-- [ ] Обновить `docs/deployment-yandex-cloud.md` под registry-based staging rollout.
-- [ ] Обновить `README.md` с новым staging deploy contract.
+- [x] Обновить `docs/deployment-yandex-cloud.md` под registry-based staging rollout.
+- [x] Обновить `README.md` с новым staging deploy contract.
 - [ ] Обновить project notes/`AGENTS.md`, если появятся важные operational lessons.
 
 ## Затронутые файлы/модули
@@ -92,23 +92,23 @@
 ## Тест-план
 
 - **Deploy contract**
-- [ ] Staging compose config использует registry images по SHA, а не build path.
-- [ ] VM успешно логинится в `cr.yandex` и делает `docker compose pull`.
+- [x] Staging compose config использует registry images по SHA, а не build path.
+- [x] VM успешно логинится в `cr.yandex` и делает `docker compose pull`.
 
 - **Post-deploy smoke**
-- [ ] После deploy `https://89.169.161.91.sslip.io/health` отвечает `200`.
-- [ ] После deploy `https://89.169.161.91.sslip.io/rooms/demo-room` отвечает `200`.
-- [ ] После deploy `https://89.169.161.91.sslip.io/control-plane` отвечает `200`.
+- [x] После deploy `https://89.169.161.91.sslip.io/health` отвечает `200`.
+- [x] После deploy `https://89.169.161.91.sslip.io/rooms/demo-room` отвечает `200`.
+- [x] После deploy `https://89.169.161.91.sslip.io/control-plane` отвечает `200`.
 
 - **Rollback**
-- [ ] Rollback на предыдущий SHA выполняется без rebuild на VM.
-- [ ] После rollback smoke endpoints остаются зелеными.
+- [x] Rollback на предыдущий SHA выполняется без rebuild на VM.
+- [x] После rollback smoke endpoints остаются зелеными.
 
 - **Негативные кейсы**
-- [ ] При неверном SHA tag deploy job падает понятной ошибкой на этапе pull.
-- [ ] При отсутствии registry auth deploy job fail-fast падает понятной ошибкой.
-- [ ] При неуспешном rollout не теряются volumes `postgres` и `minio`.
-- [ ] Alias tags не используются как фактический deploy input.
+- [x] При неверном SHA tag deploy job падает понятной ошибкой на этапе pull.
+- [x] При отсутствии registry auth deploy job fail-fast падает понятной ошибкой.
+- [x] При неуспешном rollout не теряются volumes `postgres` и `minio`.
+- [x] Alias tags не используются как фактический deploy input.
 
 ## Риски и откаты (roll-back)
 
@@ -123,8 +123,15 @@
 
 ## Definition of done для Phase 5
 
-- [ ] Staging VM разворачивает `api` и `room-state` из registry images по SHA.
-- [ ] Основной staging deploy path больше не требует `docker compose build` на VM.
+- [x] Staging VM разворачивает `api` и `room-state` из registry images по SHA.
+- [x] Основной staging deploy path больше не требует `docker compose build` на VM.
 - [ ] GitHub Actions умеет запускать staging deploy по SSH.
-- [ ] После deploy автоматически проходит базовый post-deploy smoke: `/health`, `demo-room`, `control-plane`.
-- [ ] Rollback на previous SHA документирован и проверен smoke-проверкой.
+- [x] После deploy автоматически проходит базовый post-deploy smoke: `/health`, `demo-room`, `control-plane`.
+- [x] Rollback на previous SHA документирован и проверен smoke-проверкой.
+
+## Итог выполнения
+
+- Phase 5 почти завершена: staging VM переведена на registry image deploy по SHA, `docker compose build` больше не нужен как штатный staging path, post-deploy smoke и rollback smoke подтверждены на реальном staging host.
+- Registry-based rollout подтвержден вручную через SSH path и `infra/docker/rollout-staging-images.sh` для SHA `8f079588944b13cc387a7774a774c7bf590cf1bc`.
+- Rollback smoke подтвержден повторным rollout на предыдущий published SHA `287bc501f4ef9e010074b292026888a7ecf6f807` с последующим возвратом на текущий SHA.
+- Оставшийся operational gap: workflow `.github/workflows/staging-deploy.yml` закоммичен и готов, но GitHub не регистрирует новый workflow для `workflow_dispatch` пока он не окажется на default branch; поэтому end-to-end запуск именно через GitHub Actions будет подтвержден после merge/default-branch availability.
