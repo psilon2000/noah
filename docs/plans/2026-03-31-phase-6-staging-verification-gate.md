@@ -30,43 +30,43 @@
 
 ### 1. Зафиксировать gate contract
 
-- [ ] Зафиксировать список staging checks, которые обязательны всегда после deploy: `/health`, `demo-room`, `control-plane`, `pnpm test:e2e:staging`.
-- [ ] Зафиксировать, какие staging tests остаются частью mandatory gate, а какие могут быть manual-only в будущем.
-- [ ] Зафиксировать rollback trigger: любой fail post-deploy smoke или `pnpm test:e2e:staging`.
-- [ ] Зафиксировать источник previous successful SHA для rollback.
+- [x] Зафиксировать список staging checks, которые обязательны всегда после deploy: `/health`, `demo-room`, `control-plane`, `pnpm test:e2e:staging`.
+- [x] Зафиксировать, какие staging tests остаются частью mandatory gate, а какие могут быть manual-only в будущем.
+- [x] Зафиксировать rollback trigger: любой fail post-deploy smoke или `pnpm test:e2e:staging`.
+- [x] Зафиксировать источник previous successful SHA для rollback.
 
 ### 2. Интегрировать staging e2e в deploy workflow
 
-- [ ] Обновить `.github/workflows/staging-deploy.yml`, чтобы после rollout выполнялся Playwright-based `pnpm test:e2e:staging`.
-- [ ] Передавать в workflow нужные env vars для staging suite (`BASE_URL`, scene room ids, admin token при необходимости).
-- [ ] Убедиться, что staging suite использует public HTTPS path, а не direct IP fallback.
-- [ ] Сделать verification steps blocking для успешного deploy status.
+- [x] Обновить `.github/workflows/staging-deploy.yml`, чтобы после rollout выполнялся Playwright-based `pnpm test:e2e:staging`.
+- [x] Передавать в workflow нужные env vars для staging suite (`BASE_URL`, scene room ids, admin token при необходимости).
+- [x] Убедиться, что staging suite использует public HTTPS path, а не direct IP fallback.
+- [x] Сделать verification steps blocking для успешного deploy status.
 
 ### 3. Упростить/встроить existing staging smoke path
 
-- [ ] Решить, остается ли `.github/workflows/staging-smoke.yml` как manual utility workflow, или его логика полностью переезжает в `staging-deploy.yml`.
-- [ ] Убрать дублирование wait/health logic между workflow'ами.
-- [ ] Зафиксировать один source of truth для staging verification contract.
+- [x] Решить, остается ли `.github/workflows/staging-smoke.yml` как manual utility workflow, или его логика полностью переезжает в `staging-deploy.yml`.
+- [x] Убрать дублирование wait/health logic между workflow'ами.
+- [x] Зафиксировать один source of truth для staging verification contract.
 
 ### 4. Реализовать rollback on failed verification
 
-- [ ] Добавить в deploy workflow rollback step, который выполняется при fail verification.
-- [ ] Rollback должен повторно rollout'ить previous successful SHA без rebuild на VM.
-- [ ] После rollback выполнять минимальный smoke: `/health`, `demo-room`, `control-plane`.
-- [ ] Даже после успешного rollback исходный failed deploy должен оставаться failed в GitHub Actions.
+- [x] Добавить в deploy workflow rollback step, который выполняется при fail verification.
+- [x] Rollback должен повторно rollout'ить previous successful SHA без rebuild на VM.
+- [x] После rollback выполнять минимальный smoke: `/health`, `demo-room`, `control-plane`.
+- [x] Даже после успешного rollback исходный failed deploy должен оставаться failed в GitHub Actions.
 
 ### 5. Зафиксировать successful deploy state
 
-- [ ] Добавить простой механизм сохранения current successful SHA для следующего rollback.
-- [ ] Зафиксировать, где хранится этот state: файл на VM, env file, workflow artifact или другой простой persistent path.
-- [ ] Убедиться, что rollback не опирается на alias tags вроде `staging`.
-- [ ] Явно записывать current successful SHA и rollback target в workflow logs/summary для отладки.
+- [x] Добавить простой механизм сохранения current successful SHA для следующего rollback.
+- [x] Зафиксировать, где хранится этот state: файл на VM, env file, workflow artifact или другой простой persistent path.
+- [x] Убедиться, что rollback не опирается на alias tags вроде `staging`.
+- [x] Явно записывать current successful SHA и rollback target в workflow logs/summary для отладки.
 
 ### 6. Обновить документацию
 
-- [ ] Обновить `README.md` с новым gate-driven staging deploy contract.
-- [ ] Обновить `docs/deployment-yandex-cloud.md` с описанием auto verification и rollback behavior.
-- [ ] Обновить `AGENTS.md`, если появятся важные operational lessons по gate/rollback behavior.
+- [x] Обновить `README.md` с новым gate-driven staging deploy contract.
+- [x] Обновить `docs/deployment-yandex-cloud.md` с описанием auto verification и rollback behavior.
+- [x] Обновить `AGENTS.md`, если появятся важные operational lessons по gate/rollback behavior.
 
 ## Затронутые файлы/модули
 
@@ -81,25 +81,25 @@
 ## Тест-план
 
 - **Workflow path**
-- [ ] `Staging Deploy` выполняет rollout, smoke и `pnpm test:e2e:staging` в одном workflow.
-- [ ] Successful deploy остается green только если все checks прошли.
+- [x] `Staging Deploy` выполняет rollout, smoke и `pnpm test:e2e:staging` в одном workflow.
+- [x] Successful deploy остается green только если все checks прошли.
 
 - **Verification gate**
-- [ ] После deploy `https://89.169.161.91.sslip.io/health` отвечает `200`.
-- [ ] После deploy `https://89.169.161.91.sslip.io/rooms/demo-room` отвечает `200`.
-- [ ] После deploy `https://89.169.161.91.sslip.io/control-plane` отвечает `200`.
-- [ ] `pnpm test:e2e:staging` проходит на public HTTPS base URL.
+- [x] После deploy `https://89.169.161.91.sslip.io/health` отвечает `200`.
+- [x] После deploy `https://89.169.161.91.sslip.io/rooms/demo-room` отвечает `200`.
+- [x] После deploy `https://89.169.161.91.sslip.io/control-plane` отвечает `200`.
+- [x] `pnpm test:e2e:staging` проходит на public HTTPS base URL.
 
 - **Rollback**
-- [ ] Если verification intentionally fails, workflow выполняет rollback на previous successful SHA.
-- [ ] После rollback минимальный smoke снова зеленый.
-- [ ] Failed rollout остается failed в GitHub Actions history, even if rollback succeeded.
+- [x] Если verification intentionally fails, workflow выполняет rollback на previous successful SHA.
+- [x] После rollback минимальный smoke снова зеленый.
+- [x] Failed rollout остается failed в GitHub Actions history, even if rollback succeeded.
 
 - **Негативные кейсы**
-- [ ] При сломанном staging e2e gate deploy job fail-fast уходит в rollback.
-- [ ] При отсутствии previous successful SHA workflow падает явной ошибкой rollback_precondition_failed.
-- [ ] При неудачном rollback workflow дает явный failed status и не маскирует проблему.
-- [ ] Rollback не удаляет `postgres`/`minio` volumes.
+- [x] При сломанном staging e2e gate deploy job fail-fast уходит в rollback.
+- [x] При отсутствии previous successful SHA workflow падает явной ошибкой rollback_precondition_failed.
+- [x] При неудачном rollback workflow дает явный failed status и не маскирует проблему.
+- [x] Rollback не удаляет `postgres`/`minio` volumes.
 
 ## Риски и откаты (roll-back)
 
@@ -114,8 +114,15 @@
 
 ## Definition of done для Phase 6
 
-- [ ] `Staging Deploy` включает обязательный post-deploy gate с `pnpm test:e2e:staging`.
-- [ ] Deploy считается успешным только если smoke и staging e2e зеленые.
-- [ ] При fail verification workflow автоматически откатывает previous successful SHA.
-- [ ] Rollback path проверен реальным failed rollout scenario.
-- [ ] Gate/rollback contract задокументирован в проекте.
+- [x] `Staging Deploy` включает обязательный post-deploy gate с `pnpm test:e2e:staging`.
+- [x] Deploy считается успешным только если smoke и staging e2e зеленые.
+- [x] При fail verification workflow автоматически откатывает previous successful SHA.
+- [x] Rollback path проверен реальным failed rollout scenario.
+- [x] Gate/rollback contract задокументирован в проекте.
+
+## Итог выполнения
+
+- Phase 6 завершена: `Staging Deploy` стал обязательным gate-driven workflow, который делает rollout, public smoke, `pnpm test:e2e:staging`, сохраняет successful SHA и откатывает previous successful SHA при fail verification.
+- Verified failed rollout scenario: workflow run `23804157870` специально провалил gate и выполнил rollback на сохраненный successful SHA.
+- Verified successful gated deploy: workflow run `23804311484` выполнил rollout и полный staging gate без rollback.
+- `.github/workflows/staging-smoke.yml` остается manual utility workflow, но source of truth для mandatory staging verification теперь `.github/workflows/staging-deploy.yml`.
