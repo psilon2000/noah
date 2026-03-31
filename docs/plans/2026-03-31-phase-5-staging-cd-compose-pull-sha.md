@@ -76,7 +76,7 @@
 
 - [x] Обновить `docs/deployment-yandex-cloud.md` под registry-based staging rollout.
 - [x] Обновить `README.md` с новым staging deploy contract.
-- [ ] Обновить project notes/`AGENTS.md`, если появятся важные operational lessons.
+- [x] Обновить project notes/`AGENTS.md`, если появятся важные operational lessons.
 
 ## Затронутые файлы/модули
 
@@ -125,7 +125,7 @@
 
 - [x] Staging VM разворачивает `api` и `room-state` из registry images по SHA.
 - [x] Основной staging deploy path больше не требует `docker compose build` на VM.
-- [ ] GitHub Actions умеет запускать staging deploy по SSH.
+- [x] GitHub Actions умеет запускать staging deploy по SSH.
 - [x] После deploy автоматически проходит базовый post-deploy smoke: `/health`, `demo-room`, `control-plane`.
 - [x] Rollback на previous SHA документирован и проверен smoke-проверкой.
 
@@ -134,4 +134,4 @@
 - Phase 5 почти завершена: staging VM переведена на registry image deploy по SHA, `docker compose build` больше не нужен как штатный staging path, post-deploy smoke и rollback smoke подтверждены на реальном staging host.
 - Registry-based rollout подтвержден вручную через SSH path и `infra/docker/rollout-staging-images.sh` для SHA `8f079588944b13cc387a7774a774c7bf590cf1bc`.
 - Rollback smoke подтвержден повторным rollout на предыдущий published SHA `287bc501f4ef9e010074b292026888a7ecf6f807` с последующим возвратом на текущий SHA.
-- Оставшийся operational gap: workflow `.github/workflows/staging-deploy.yml` закоммичен и готов, но GitHub не регистрирует новый workflow для `workflow_dispatch` пока он не окажется на default branch; поэтому end-to-end запуск именно через GitHub Actions будет подтвержден после merge/default-branch availability.
+- GitHub Actions deploy path теперь тоже подтвержден end-to-end: `workflow_dispatch` run `23801431402` успешно выполнил SSH rollout по immutable SHA и прошел post-deploy smoke.
