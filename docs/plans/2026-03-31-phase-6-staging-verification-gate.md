@@ -24,6 +24,8 @@
 
 Расширить `.github/workflows/staging-deploy.yml` так, чтобы после rollout и базового smoke он запускал staging Playwright suite на публичном HTTPS URL. Mandatory gate использует текущий стабилизированный staging suite и не должен автоматически расширяться flaky/manual-only checks без отдельного решения. Если smoke или `pnpm test:e2e:staging` падают, workflow выполняет rollback на previous successful SHA, повторно проверяет минимальный smoke и завершает job как failed. Источник previous successful SHA должен быть простым и устойчивым: сохраняемый deploy state на VM и/или workflow input/output, без дополнительной внешней БД.
 
+В реализации нужно оставить mandatory gate минимально детерминированным: текущий staging suite плюс already-stabilized scene checks, без автоматического добавления дополнительных manual/test-only rooms.
+
 ## Задачи
 
 ### 1. Зафиксировать gate contract
