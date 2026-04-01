@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { VRButton } from "three/examples/jsm/webxr/VRButton.js";
 import { Room, RoomEvent, Track } from "livekit-client";
 
-import { bootRuntime, listPresence, planVoiceSession, removePresence, upsertPresence, type PresenceState } from "./index.js";
+import { bootRuntime, fetchRuntimeSpaces, listPresence, planVoiceSession, removePresence, resolveCurrentSpace, upsertPresence, type PresenceState, type RuntimeSpaceOption } from "./index.js";
 import { applySnapTurn, computeKeyboardDirection, rotateFlatVector, sanitizeXrAxes, stepFlatMovement } from "./movement.js";
 import { createMotionTrack, pushMotionSample, sampleMotion, type MotionTrack } from "./motion-state.js";
 import { connectRoomState, sendParticipantUpdate, type RoomStateClient, type RoomStateSnapshot } from "./room-state-client.js";
@@ -10,6 +10,8 @@ import { classifyMediaError, classifyRoomStateError, createFaultError, getRuntim
 import { canRetry, createReconnectPolicy, getReconnectDelayMs } from "./reconnect.js";
 import { applyRuntimeIssueState, clearRuntimeIssueState, createRuntimeUiState } from "./runtime-state.js";
 import { applySpatialSettings, createSpatialAudioSettings } from "./spatial-audio.js";
+import { captureCanvasDiagnostics, createEmptySceneDiagnostics, inspectSceneObject } from "./scene-debug.js";
+import { loadSceneBundle } from "./scene-loader.js";
 import { detectXrSupport, getEnterVrVisibility } from "./xr.js";
 
 function fallbackUuid(): string {
@@ -39,8 +41,12 @@ const apiBaseUrl = window.location.origin;
 const roomId = window.location.pathname.split("/").filter(Boolean)[1] ?? "demo-room";
 const query = new URLSearchParams(window.location.search);
 const debugEnabled = query.get("debug") === "1";
+const sceneFitEnabled = debugEnabled && query.get("scenefit") !== "0";
+const sceneMaterialDebugMode = debugEnabled ? (query.get("mat") ?? "off") : "off";
+const requestedCleanSceneMode = query.get("clean") === "1";
 const botMode = query.get("bot") ?? "off";
 const shareMockEnabled = query.get("sharemock") === "1";
+const failSpaces = query.get("failspaces") === "1";
 const faultConfig = {
   audio: query.get("failaudio") as RuntimeIssue["code"] | null,
   roomState: query.get("failroomstate") === "1",
@@ -55,6 +61,8 @@ const statusLineEl = mustElement<HTMLDivElement>("#status-line");
 const brandingLineEl = mustElement<HTMLDivElement>("#branding-line");
 const roomStateLineEl = mustElement<HTMLDivElement>("#room-state-line");
 const guestAccessLineEl = mustElement<HTMLDivElement>("#guest-access-line");
+const spaceSelect = mustElement<HTMLSelectElement>("#space-select");
+const spaceSelectStatusEl = mustElement<HTMLDivElement>("#space-select-status");
 const sceneHost = mustElement<HTMLDivElement>("#scene");
 const joinAudioButton = mustElement<HTMLButtonElement>("#join-audio");
 const muteButton = mustElement<HTMLButtonElement>("#toggle-mute");
@@ -72,11 +80,12 @@ if (shareMockEnabled) {
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x08111f, 12, 50);
+const defaultSceneFog = scene.fog;
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 200);
 camera.position.set(0, 1.6, 0);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: debugEnabled });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
@@ -93,6 +102,9 @@ scene.add(new THREE.HemisphereLight(0xcbe9ff, 0x152033, 1.4));
 const directional = new THREE.DirectionalLight(0xffffff, 1.4);
 directional.position.set(5, 9, 3);
 scene.add(directional);
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+ambientLight.visible = false;
+scene.add(ambientLight);
 
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(40, 40, 10, 10),
@@ -116,6 +128,8 @@ const displaySurface = new THREE.Mesh(
 );
 displaySurface.position.set(0, 2.2, -6.6);
 scene.add(displaySurface);
+
+const fallbackEnvironment: THREE.Object3D[] = [floor, grid, roomBox, displaySurface];
 
 const bodyGeometry = new THREE.CapsuleGeometry(0.24, 0.8, 6, 12);
 const headGeometry = new THREE.SphereGeometry(0.18, 20, 20);
@@ -154,6 +168,7 @@ let roomStateClient: RoomStateClient | null = null;
 let roomStateConnected = false;
 let roomStateReconnectTimer: number | null = null;
 let audioContext: AudioContext | null = null;
+let activeSceneBundleRoot: THREE.Object3D | null = null;
 const roomStateReconnectPolicy = createReconnectPolicy({
   maxRetries: Number.parseInt(query.get("roomstateretries") ?? "3", 10),
   baseDelayMs: Number.parseInt(query.get("roomstatedelay") ?? "1000", 10),
@@ -175,8 +190,66 @@ let runtimeFlags = {
   audioJoin: true,
   screenShare: true,
   roomStateRealtime: true,
-  remoteDiagnostics: true
+  remoteDiagnostics: true,
+  sceneBundles: true
 };
+let effectiveCleanSceneMode = requestedCleanSceneMode;
+let availableSpaces: RuntimeSpaceOption[] = [];
+
+function setFallbackEnvironmentVisible(visible: boolean): void {
+  for (const object of fallbackEnvironment) {
+    object.visible = visible;
+  }
+}
+
+function applyCleanSceneMode(enabled: boolean): void {
+  ambientLight.visible = enabled;
+  directional.visible = !enabled;
+  scene.fog = enabled ? null : defaultSceneFog;
+  floor.visible = !enabled;
+  grid.visible = !enabled;
+  roomBox.visible = !enabled;
+  displaySurface.visible = true;
+}
+
+function applySceneDebugFit(bounds: NonNullable<typeof debugState.sceneDebug.boundingBox>): void {
+  const horizontalSize = Math.max(bounds.size.x, bounds.size.z, 1);
+  const distance = Math.max(horizontalSize * 0.65, 12);
+  const targetY = bounds.center.y;
+  player.position.set(bounds.center.x, targetY, bounds.center.z + distance);
+
+  const cameraWorld = new THREE.Vector3();
+  camera.getWorldPosition(cameraWorld);
+  const target = new THREE.Vector3(bounds.center.x, bounds.center.y, bounds.center.z);
+  const delta = target.sub(cameraWorld);
+  yaw = Math.atan2(delta.x, delta.z) + Math.PI;
+  const horizontalDistance = Math.max(0.001, Math.hypot(delta.x, delta.z));
+  pitchAngle = THREE.MathUtils.clamp(-Math.atan2(delta.y, horizontalDistance), -1.1, 1.1);
+  player.rotation.y = yaw;
+  pitch.rotation.x = pitchAngle;
+  debugState.localPosition = {
+    x: Number(player.position.x.toFixed(2)),
+    z: Number(player.position.z.toFixed(2))
+  };
+}
+
+function applySceneMaterialDebugMode(root: THREE.Object3D, mode: string): void {
+  if (mode === "off") {
+    return;
+  }
+  root.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) {
+      return;
+    }
+    if (mode === "basic") {
+      child.material = new THREE.MeshBasicMaterial({ color: 0xf2efe8, wireframe: false });
+      return;
+    }
+    if (mode === "wire") {
+      child.material = new THREE.MeshBasicMaterial({ color: 0xf2efe8, wireframe: true });
+    }
+  });
+}
 
 function getPresenceCaptureTime(updatedAt: string | undefined, fallbackNow: number): number {
   const parsed = updatedAt ? Date.parse(updatedAt) : Number.NaN;
@@ -327,7 +400,12 @@ const debugState = {
   faultInjection: faultConfig,
   lastPresenceSyncAt: 0,
   lastPresenceRefreshAt: 0,
-  remoteTargets: [] as Array<{ id: string; x: number; z: number }>
+  remoteTargets: [] as Array<{ id: string; x: number; z: number }>,
+  sceneBundleUrl: null as string | null,
+  sceneBundleState: "fallback" as "fallback" | "loaded" | "failed",
+  sceneDebug: createEmptySceneDiagnostics(),
+  spaceSelectorState: "loading" as "loading" | "ready" | "empty" | "unavailable",
+  availableSpaceCount: 0
 };
 
 const floorMaterial = floor.material as THREE.MeshStandardMaterial;
@@ -341,6 +419,71 @@ function setStatus(message: string): void {
 
 function setRoomStateStatus(message: string): void {
   roomStateLineEl.textContent = message;
+}
+
+function renderSpaceSelector(state: "loading" | "ready" | "empty" | "unavailable", spaces: RuntimeSpaceOption[], selectedRoomId: string): void {
+  spaceSelect.replaceChildren();
+  debugState.spaceSelectorState = state;
+  debugState.availableSpaceCount = spaces.length;
+
+  if (state === "loading") {
+    const option = document.createElement("option");
+    option.value = selectedRoomId;
+    option.textContent = "Loading spaces...";
+    spaceSelect.appendChild(option);
+    spaceSelect.disabled = true;
+    spaceSelectStatusEl.textContent = "Loading spaces...";
+    return;
+  }
+
+  if (state === "unavailable") {
+    const option = document.createElement("option");
+    option.value = selectedRoomId;
+    option.textContent = "Spaces unavailable";
+    spaceSelect.appendChild(option);
+    spaceSelect.disabled = true;
+    spaceSelectStatusEl.textContent = "Spaces unavailable";
+    return;
+  }
+
+  if (state === "empty") {
+    const option = document.createElement("option");
+    option.value = selectedRoomId;
+    option.textContent = "No spaces available";
+    spaceSelect.appendChild(option);
+    spaceSelect.disabled = true;
+    spaceSelectStatusEl.textContent = "No spaces available";
+    return;
+  }
+
+  for (const space of spaces) {
+    const option = document.createElement("option");
+    option.value = space.roomLink;
+    option.textContent = space.label;
+    option.selected = space.roomId === selectedRoomId;
+    spaceSelect.appendChild(option);
+  }
+  spaceSelect.disabled = spaces.length <= 1;
+  spaceSelectStatusEl.textContent = spaces.length <= 1 ? "Only one space available" : "";
+}
+
+async function loadAvailableSpaces(currentRoomId: string): Promise<void> {
+  renderSpaceSelector("loading", [], currentRoomId);
+  try {
+    const search = failSpaces ? "?fail=1" : "";
+    const spaces = await fetchRuntimeSpaces(apiBaseUrl, currentRoomId, search);
+    availableSpaces = spaces;
+    const currentSpace = resolveCurrentSpace(spaces, currentRoomId);
+    if (!currentSpace && spaces.length > 0) {
+      renderSpaceSelector("ready", spaces, spaces[0].roomId);
+      spaceSelectStatusEl.textContent = "Current space not listed";
+      return;
+    }
+    renderSpaceSelector(spaces.length === 0 ? "empty" : "ready", spaces, currentRoomId);
+  } catch (_error: unknown) {
+    availableSpaces = [];
+    renderSpaceSelector("unavailable", [], currentRoomId);
+  }
 }
 
 function commitRuntimeUiState(nextState: ReturnType<typeof createRuntimeUiState>, updateStatus = true): void {
@@ -513,6 +656,19 @@ async function reportDiagnostics(note?: string): Promise<void> {
   if (!runtimeFlags.remoteDiagnostics) {
     return;
   }
+  if (activeSceneBundleRoot) {
+    debugState.sceneDebug = inspectSceneObject({
+      root: activeSceneBundleRoot,
+      camera,
+      previous: debugState.sceneDebug
+    });
+  }
+  const includeImage = debugEnabled;
+  const screenshot = captureCanvasDiagnostics({
+    canvas: renderer.domElement,
+    includeImage
+  });
+  debugState.sceneDebug.screenshot = screenshot;
   await fetch(new URL(`/api/rooms/${roomId}/diagnostics`, apiBaseUrl), {
     method: "POST",
     headers: {
@@ -539,6 +695,11 @@ async function reportDiagnostics(note?: string): Promise<void> {
       lastPresenceRefreshAt: debugState.lastPresenceRefreshAt,
       featureFlags: debugState.featureFlags,
       faultInjection: debugState.faultInjection,
+      sceneDebug: {
+        ...debugState.sceneDebug,
+        missingAssetCount: debugState.sceneDebug.missingAssets.length,
+        screenshot
+      },
       note,
       createdAt: new Date().toISOString()
     })
@@ -1015,6 +1176,15 @@ muteButton.addEventListener("click", async () => {
   debugState.audioState = microphoneEnabled ? "live" : "muted";
 });
 
+spaceSelect.addEventListener("change", () => {
+  const targetRoomLink = spaceSelect.value;
+  const targetSpace = availableSpaces.find((space) => space.roomLink === targetRoomLink);
+  if (!targetRoomLink || !targetSpace || targetSpace.roomId === roomId) {
+    return;
+  }
+  window.location.assign(targetRoomLink);
+});
+
 joinAudioButton.addEventListener("click", () => {
   void joinAudio().catch((error: unknown) => {
     console.error(error);
@@ -1149,13 +1319,13 @@ renderer.setAnimationLoop(() => {
     });
   }
 
+  renderer.render(scene, camera);
+
   diagnosticsAccumulator += delta;
   if (diagnosticsAccumulator >= 2) {
     diagnosticsAccumulator = 0;
     void reportDiagnostics();
   }
-
-  renderer.render(scene, camera);
 });
 
 async function main(): Promise<void> {
@@ -1165,19 +1335,87 @@ async function main(): Promise<void> {
     audioJoin: boot.envFlags.audioJoin && boot.voiceEnabled,
     screenShare: boot.envFlags.screenShare && boot.screenShareEnabled,
     roomStateRealtime: boot.envFlags.roomStateRealtime,
-    remoteDiagnostics: boot.envFlags.remoteDiagnostics
+    remoteDiagnostics: boot.envFlags.remoteDiagnostics,
+    sceneBundles: boot.envFlags.sceneBundles
   };
   debugState.featureFlags = runtimeFlags;
   debugState.roomStateUrl = boot.roomStateUrl;
+  debugState.sceneBundleUrl = boot.sceneBundleUrl ?? null;
+  debugState.sceneDebug.bundleUrl = boot.sceneBundleUrl ?? null;
   setRoomStateStatus(`Room-state: connecting`);
   roomNameEl.textContent = `${boot.template} - ${boot.roomId}`;
   brandingLineEl.textContent = boot.assets.length > 0
     ? `Attached assets: ${boot.assets.map((asset) => `${asset.kind}${asset.validationStatus ? ` [${asset.validationStatus}]` : ""}`).join(", ")}`
     : "No branded assets attached";
   guestAccessLineEl.textContent = boot.guestAllowed ? "Guest access: enabled" : "Guest access: members only";
+  await loadAvailableSpaces(boot.roomId);
   floorMaterial.color.set(boot.theme.accentColor);
   wallMaterial.color.set(boot.theme.primaryColor);
-  scene.fog = new THREE.Fog(new THREE.Color(boot.theme.accentColor).getHex(), 12, 50);
+  if (!effectiveCleanSceneMode) {
+    scene.fog = new THREE.Fog(new THREE.Color(boot.theme.accentColor).getHex(), 12, 50);
+  } else {
+    applyCleanSceneMode(true);
+  }
+
+  if (boot.sceneBundleUrl && runtimeFlags.sceneBundles) {
+    try {
+      const loadedScene = await loadSceneBundle({
+        scene,
+        player,
+        bundleUrl: boot.sceneBundleUrl
+      });
+      activeSceneBundleRoot = loadedScene.group;
+      effectiveCleanSceneMode = requestedCleanSceneMode || loadedScene.manifest.renderMode === "clean";
+      applySceneMaterialDebugMode(loadedScene.group, sceneMaterialDebugMode);
+      setFallbackEnvironmentVisible(false);
+      if (effectiveCleanSceneMode) {
+        applyCleanSceneMode(true);
+      }
+      debugState.sceneBundleState = "loaded";
+      debugState.sceneDebug = inspectSceneObject({
+        root: loadedScene.group,
+        camera,
+        previous: {
+          ...debugState.sceneDebug,
+          bundleUrl: boot.sceneBundleUrl,
+          state: "loaded",
+          label: loadedScene.manifest.label,
+          source: loadedScene.manifest.source,
+          assetUrl: loadedScene.assetUrl,
+          assetType: loadedScene.assetType,
+          spawnPointId: loadedScene.spawnPointId,
+          spawnApplied: loadedScene.spawnPointApplied,
+          loadMs: loadedScene.loadMs,
+          missingAssets: loadedScene.missingAssets
+        }
+      });
+      if (sceneFitEnabled && debugState.sceneDebug.boundingBox) {
+        applySceneDebugFit(debugState.sceneDebug.boundingBox);
+        debugState.sceneDebug = inspectSceneObject({
+          root: loadedScene.group,
+          camera,
+          previous: debugState.sceneDebug
+        });
+      }
+      brandingLineEl.textContent = `${brandingLineEl.textContent} | Scene: ${loadedScene.manifest.label}`;
+      void reportDiagnostics("scene_bundle_loaded");
+    } catch (error) {
+      console.error(error);
+      activeSceneBundleRoot = null;
+      setFallbackEnvironmentVisible(true);
+      debugState.sceneBundleState = "failed";
+      debugState.sceneDebug = {
+        ...debugState.sceneDebug,
+        bundleUrl: boot.sceneBundleUrl,
+        state: "failed",
+        missingAssets: [],
+        loadMs: null
+      };
+      brandingLineEl.textContent = `${brandingLineEl.textContent} | Scene bundle fallback active`;
+      void reportDiagnostics("scene_bundle_failed");
+    }
+  }
+
   setStatus(`Joined as ${displayName}`);
   startShareButton.disabled = !runtimeFlags.screenShare && !shareMockEnabled;
   joinAudioButton.disabled = !runtimeFlags.audioJoin;
@@ -1187,14 +1425,24 @@ async function main(): Promise<void> {
   }
 
   if ((runtimeFlags.audioJoin || runtimeFlags.screenShare) && faultConfig.audio !== "mic_denied" && faultConfig.audio !== "no_audio_device") {
-    try {
-      await ensureMediaRoom();
+    void ensureMediaRoom().then(() => {
       clearIssue(`Joined as ${displayName}`);
       debugState.audioState = "connected-passive";
       void reportDiagnostics("media_connected_passive");
-    } catch (error) {
+    }).catch((error: unknown) => {
       console.error(error);
       const issue = classifyMediaError(error);
+      if (runtimeUiState.issueCode === "room_state_failed") {
+        runtimeUiState = {
+          ...runtimeUiState,
+          audioState: "degraded",
+          lastRecoveryAction: "media_passive_connect_failed"
+        };
+        debugState.audioState = runtimeUiState.audioState;
+        debugState.lastRecoveryAction = runtimeUiState.lastRecoveryAction;
+        void reportDiagnostics(issue.diagnosticsNote);
+        return;
+      }
       applyIssue(issue, {
         degradedMode: "presence_only",
         audioState: "degraded",
@@ -1202,7 +1450,7 @@ async function main(): Promise<void> {
         updateStatus: false
       });
       void reportDiagnostics(issue.diagnosticsNote);
-    }
+    });
   }
 
   try {
@@ -1248,7 +1496,7 @@ async function main(): Promise<void> {
   await syncPresence(boot.joinMode, false);
   await refreshPresence();
   latestMode = boot.joinMode;
-  void reportDiagnostics("runtime_booted");
+  await reportDiagnostics("runtime_booted");
 }
 
 void main().catch((error: unknown) => {

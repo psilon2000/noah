@@ -1,6 +1,9 @@
 interface RoomManifest {
   roomId: string;
   template: string;
+  sceneBundle?: {
+    url: string;
+  };
   realtime: {
     roomStateUrl: string;
   };
@@ -39,6 +42,7 @@ interface RuntimeHealthResponse {
     screenShareEnabled?: boolean;
     roomStateRealtimeEnabled?: boolean;
     remoteDiagnosticsEnabled?: boolean;
+    sceneBundlesEnabled?: boolean;
   };
 }
 
@@ -69,12 +73,42 @@ export interface PresenceState {
   updatedAt: string;
 }
 
+export interface RuntimeSpaceRecord {
+  roomId: string;
+  tenantId: string;
+  name: string;
+  templateId: string;
+  roomLink: string;
+}
+
+export interface RuntimeSpaceOption extends RuntimeSpaceRecord {
+  label: string;
+}
+
 export function resolveJoinMode(userAgent: string): "desktop" | "mobile" {
   return /android|iphone|ipad/i.test(userAgent) ? "mobile" : "desktop";
 }
 
 export function describeManifest(manifest: RoomManifest): string {
   return `${manifest.roomId}:${manifest.template}`;
+}
+
+export function formatSpaceOptions(spaces: RuntimeSpaceRecord[]): RuntimeSpaceOption[] {
+  const nameCounts = new Map<string, number>();
+  for (const space of spaces) {
+    nameCounts.set(space.name, (nameCounts.get(space.name) ?? 0) + 1);
+  }
+
+  return spaces.map((space) => ({
+    ...space,
+    label: (nameCounts.get(space.name) ?? 0) > 1
+      ? `${space.name} (${space.roomId.slice(0, 8)})`
+      : space.name
+  }));
+}
+
+export function resolveCurrentSpace(spaces: RuntimeSpaceRecord[], roomId: string): RuntimeSpaceRecord | null {
+  return spaces.find((space) => space.roomId === roomId) ?? null;
 }
 
 export async function fetchRoomManifest(apiBaseUrl: string, roomId: string): Promise<RoomManifest> {
@@ -87,9 +121,21 @@ export async function fetchRoomManifest(apiBaseUrl: string, roomId: string): Pro
   return (await response.json()) as RoomManifest;
 }
 
+export async function fetchRuntimeSpaces(apiBaseUrl: string, roomId: string, search = ""): Promise<RuntimeSpaceOption[]> {
+  const response = await fetch(new URL(`/api/rooms/${roomId}/spaces${search}`, apiBaseUrl));
+
+  if (!response.ok) {
+    throw new Error(`failed_to_list_runtime_spaces:${response.status}`);
+  }
+
+  const payload = (await response.json()) as { items: RuntimeSpaceRecord[] };
+  return formatSpaceOptions(payload.items);
+}
+
 export interface RuntimeBootResult {
   roomId: string;
   template: string;
+  sceneBundleUrl?: string;
   roomStateUrl: string;
   theme: {
     primaryColor: string;
@@ -113,6 +159,7 @@ export interface RuntimeBootResult {
     screenShare: boolean;
     roomStateRealtime: boolean;
     remoteDiagnostics: boolean;
+    sceneBundles: boolean;
   };
 }
 
@@ -146,6 +193,7 @@ export async function bootRuntime(
   return {
     roomId: manifest.roomId,
     template: manifest.template,
+    sceneBundleUrl: manifest.sceneBundle?.url,
     roomStateUrl: manifest.realtime.roomStateUrl,
     theme: manifest.theme,
     assets: manifest.assets,
@@ -159,7 +207,8 @@ export async function bootRuntime(
       audioJoin: healthFeatures.voiceEnabled ?? true,
       screenShare: healthFeatures.screenShareEnabled ?? true,
       roomStateRealtime: healthFeatures.roomStateRealtimeEnabled ?? true,
-      remoteDiagnostics: healthFeatures.remoteDiagnosticsEnabled ?? true
+      remoteDiagnostics: healthFeatures.remoteDiagnosticsEnabled ?? true,
+      sceneBundles: healthFeatures.sceneBundlesEnabled ?? true
     }
   };
 }

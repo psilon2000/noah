@@ -7,6 +7,13 @@ import { fileURLToPath } from "node:url";
 import { AccessToken } from "livekit-server-sdk";
 
 import {
+  resolveSceneBundlePublicUrl,
+  type SceneBundleCreateInput,
+  type SceneBundleRecord,
+  type SceneBundleProvider
+} from "./scene-bundle-storage.js";
+
+import {
   createStorage,
   type AssetRecord,
   type RoomRecord,
@@ -21,6 +28,9 @@ interface RoomManifest {
   tenantId: string;
   roomId: string;
   template: string;
+  sceneBundle?: {
+    url: string;
+  };
   realtime: {
     roomStateUrl: string;
   };
@@ -76,16 +86,41 @@ interface PresenceRecord {
   updatedAt: string;
 }
 
+interface RuntimeSpaceRecord {
+  roomId: string;
+  tenantId: string;
+  name: string;
+  templateId: string;
+  roomLink: string;
+}
+
 const apiPort = Number.parseInt(process.env.API_PORT ?? "4000", 10);
 const runtimeStaticRoot = normalize(join(fileURLToPath(new URL("../../runtime-web/dist", import.meta.url))));
+const runtimePublicRoot = normalize(join(fileURLToPath(new URL("../../runtime-web/public", import.meta.url))));
 const controlPlaneStaticRoot = normalize(join(fileURLToPath(new URL("../../control-plane/dist", import.meta.url))));
 const livekitApiKey = process.env.LIVEKIT_API_KEY ?? "devkey";
 const livekitApiSecret = process.env.LIVEKIT_API_SECRET ?? "secret";
 const controlPlaneAdminToken = process.env.CONTROL_PLANE_ADMIN_TOKEN ?? "";
 const presenceTtlMs = Number.parseInt(process.env.PRESENCE_TTL_MS ?? "15000", 10);
 const storagePromise = createStorage();
+const requiredProductionApiEnvVars = ["CONTROL_PLANE_ADMIN_TOKEN", "ROOM_STATE_PUBLIC_URL", "RUNTIME_BASE_URL"] as const;
 
 const presenceByRoom = new Map<string, Map<string, PresenceRecord>>();
+
+export function getMissingRequiredApiEnvVars(env: NodeJS.ProcessEnv = process.env): string[] {
+  return requiredProductionApiEnvVars.filter((name) => !env[name] || env[name]?.trim().length === 0);
+}
+
+function validateProductionApiEnv(env: NodeJS.ProcessEnv = process.env): void {
+  if (env.NODE_ENV !== "production") {
+    return;
+  }
+  const missing = getMissingRequiredApiEnvVars(env);
+  if (missing.length === 0) {
+    return;
+  }
+  throw new Error(`missing_required_api_env:${missing.join(",")}`);
+}
 
 function logEvent(event: Record<string, unknown>): void {
   process.stdout.write(`${JSON.stringify(event)}\n`);
@@ -97,6 +132,7 @@ function defaultManifest(roomId: string): RoomManifest {
     tenantId: "demo-tenant",
     roomId,
     template: "meeting-room-basic",
+    sceneBundle: undefined,
     realtime: {
       roomStateUrl: process.env.ROOM_STATE_PUBLIC_URL ?? "ws://127.0.0.1:2567"
     },
@@ -171,6 +207,7 @@ async function buildManifest(roomId: string): Promise<RoomManifest> {
     tenantId: room.tenantId,
     roomId: room.roomId,
     template: room.templateId,
+    sceneBundle: room.sceneBundleUrl ? { url: room.sceneBundleUrl } : undefined,
     realtime: {
       roomStateUrl: process.env.ROOM_STATE_PUBLIC_URL ?? `ws://state-${process.env.API_PUBLIC_URL?.replace(/^https?:\/\//, "") ?? "127.0.0.1:2567"}`
     },
@@ -293,8 +330,63 @@ function validateAssetInput(input: Partial<AssetRecord>): string | null {
   return null;
 }
 
+function validateSceneBundleInput(input: Partial<SceneBundleCreateInput>): string | null {
+  if (!input.storageKey || input.storageKey.trim().length === 0) {
+    return "invalid_scene_bundle_storage_key";
+  }
+  if (input.provider && input.provider !== "minio-default" && input.provider !== "s3-compatible") {
+    return "invalid_scene_bundle_provider";
+  }
+  if (input.publicUrl) {
+    try {
+      new URL(input.publicUrl);
+    } catch {
+      return "invalid_scene_bundle_public_url";
+    }
+  }
+  return null;
+}
+
+function getCurrentSceneBundleVersion(bundle: SceneBundleRecord): string {
+  return bundle.version;
+}
+
 function encodeToken(payload: StateTokenPayload | MediaTokenPayload): string {
   return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+}
+
+async function listRuntimeSpaces(storage: Awaited<typeof storagePromise>, roomId: string, host?: string): Promise<RuntimeSpaceRecord[]> {
+  const currentRoom = await storage.getRoom(roomId);
+  if (!currentRoom) {
+    return [{
+      roomId,
+      tenantId: defaultManifest(roomId).tenantId,
+      name: roomId,
+      templateId: defaultManifest(roomId).template,
+      roomLink: createRoomLink(roomId, host)
+    }];
+  }
+
+  const rooms = (await storage.listRooms())
+    .filter((room) => room.tenantId === currentRoom.tenantId)
+    .filter((room) => room.roomId === currentRoom.roomId || room.guestAllowed !== false)
+    .map((room) => ({
+      roomId: room.roomId,
+      tenantId: room.tenantId,
+      name: room.name,
+      templateId: room.templateId,
+      roomLink: createRoomLink(room.roomId, host)
+    }));
+
+  return rooms.sort((left, right) => {
+    if (left.roomId === currentRoom.roomId) {
+      return -1;
+    }
+    if (right.roomId === currentRoom.roomId) {
+      return 1;
+    }
+    return left.name.localeCompare(right.name) || left.roomId.localeCompare(right.roomId);
+  });
 }
 
 async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -326,6 +418,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
         spatialAudioEnabled: process.env.FEATURE_SPATIAL_AUDIO !== "false",
         roomStateRealtimeEnabled: process.env.FEATURE_ROOM_STATE_REALTIME !== "false",
         remoteDiagnosticsEnabled: process.env.FEATURE_REMOTE_DIAGNOSTICS !== "false",
+        sceneBundlesEnabled: process.env.FEATURE_SCENE_BUNDLES !== "false",
         postgresEnabled: Boolean(process.env.POSTGRES_URL),
         controlPlaneAuthEnabled: Boolean(controlPlaneAdminToken)
       },
@@ -351,7 +444,8 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   }
 
   if (method === "GET" && url.pathname.startsWith("/assets/")) {
-    const served = await serveStatic(response, join(runtimeStaticRoot, url.pathname.slice(1)));
+    const served = await serveStatic(response, join(runtimeStaticRoot, url.pathname.slice(1)))
+      || await serveStatic(response, join(runtimePublicRoot, url.pathname.slice(1)));
     if (!served) json(response, 404, { error: "asset_not_found" });
     return;
   }
@@ -380,6 +474,35 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   if (method === "GET" && url.pathname === "/api/rooms") {
     const rooms = await storage.listRooms();
     json(response, 200, { items: rooms.map((room) => ({ ...room, roomLink: createRoomLink(room.roomId, request.headers.host) })) });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/api/scene-bundles") {
+    json(response, 200, { items: await storage.listSceneBundles() });
+    return;
+  }
+
+  const sceneBundleItemMatch = url.pathname.match(/^\/api\/scene-bundles\/([^/]+)$/);
+  if (method === "GET" && sceneBundleItemMatch) {
+    const bundle = await storage.getSceneBundle(decodeURIComponent(sceneBundleItemMatch[1]));
+    if (!bundle) return json(response, 404, { error: "scene_bundle_not_found" });
+    json(response, 200, bundle);
+    return;
+  }
+
+  const sceneBundleVersionsMatch = url.pathname.match(/^\/api\/scene-bundles\/([^/]+)\/versions$/);
+  if (method === "GET" && sceneBundleVersionsMatch) {
+    json(response, 200, { items: await storage.listSceneBundleVersions(decodeURIComponent(sceneBundleVersionsMatch[1])) });
+    return;
+  }
+
+  const roomSpacesMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)\/spaces$/);
+  if (method === "GET" && roomSpacesMatch) {
+    if (url.searchParams.get("fail") === "1") {
+      json(response, 503, { error: "spaces_unavailable" });
+      return;
+    }
+    json(response, 200, { items: await listRuntimeSpaces(storage, decodeURIComponent(roomSpacesMatch[1]), request.headers.host) });
     return;
   }
 
@@ -414,6 +537,100 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
     if (validationError) return json(response, 400, { error: validationError });
     const asset = await storage.createAsset(payload);
     json(response, 201, asset);
+    return;
+  }
+
+  if (method === "POST" && url.pathname === "/api/scene-bundles") {
+    if (!isAuthorizedControlPlaneRequest(request)) return json(response, 403, { error: "forbidden" });
+    const payload = (await parseBody<Partial<SceneBundleCreateInput>>(request)) ?? {};
+    const validationError = validateSceneBundleInput(payload);
+    if (validationError) return json(response, 400, { error: validationError });
+
+    try {
+      const provider = (payload.provider ?? ((process.env.SCENE_BUNDLE_PROVIDER as SceneBundleProvider | undefined) ?? "minio-default"));
+      const publicUrl = payload.publicUrl ?? resolveSceneBundlePublicUrl(payload.storageKey!, process.env, provider);
+      const bundle = await storage.createSceneBundle({
+        ...payload,
+        storageKey: payload.storageKey!,
+        publicUrl,
+        provider
+      });
+      json(response, 201, bundle);
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "scene_bundle_publish_failed";
+      json(response, 400, { error: message });
+      return;
+    }
+  }
+
+  if (method === "POST" && sceneBundleVersionsMatch) {
+    if (!isAuthorizedControlPlaneRequest(request)) return json(response, 403, { error: "forbidden" });
+    const bundleId = decodeURIComponent(sceneBundleVersionsMatch[1]);
+    const payload = (await parseBody<Partial<SceneBundleCreateInput>>(request)) ?? {};
+    const validationError = validateSceneBundleInput(payload);
+    if (validationError) return json(response, 400, { error: validationError });
+    try {
+      const provider = (payload.provider ?? ((process.env.SCENE_BUNDLE_PROVIDER as SceneBundleProvider | undefined) ?? "minio-default"));
+      const publicUrl = payload.publicUrl ?? resolveSceneBundlePublicUrl(payload.storageKey!, process.env, provider);
+      const bundle = await storage.createSceneBundle({
+        ...payload,
+        bundleId,
+        storageKey: payload.storageKey!,
+        publicUrl,
+        provider
+      });
+      json(response, 201, bundle);
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "scene_bundle_publish_failed";
+      json(response, 400, { error: message });
+      return;
+    }
+  }
+
+  const sceneBundleCurrentMatch = url.pathname.match(/^\/api\/scene-bundles\/([^/]+)\/current$/);
+  if (method === "POST" && sceneBundleCurrentMatch) {
+    if (!isAuthorizedControlPlaneRequest(request)) return json(response, 403, { error: "forbidden" });
+    const bundleId = decodeURIComponent(sceneBundleCurrentMatch[1]);
+    const payload = (await parseBody<{ version?: string }>(request)) ?? {};
+    if (!payload.version) return json(response, 400, { error: "missing_scene_bundle_version" });
+    const current = await storage.setCurrentSceneBundleVersion(bundleId, payload.version);
+    if (!current) return json(response, 404, { error: "scene_bundle_version_not_found" });
+    json(response, 200, current);
+    return;
+  }
+
+  const sceneBundleStatusMatch = url.pathname.match(/^\/api\/scene-bundles\/([^/]+)\/versions\/([^/]+)\/status$/);
+  if (method === "POST" && sceneBundleStatusMatch) {
+    if (!isAuthorizedControlPlaneRequest(request)) return json(response, 403, { error: "forbidden" });
+    const bundleId = decodeURIComponent(sceneBundleStatusMatch[1]);
+    const version = decodeURIComponent(sceneBundleStatusMatch[2]);
+    const payload = (await parseBody<{ status?: SceneBundleRecord["status"] }>(request)) ?? {};
+    if (!payload.status || !["active", "obsolete", "cleanup-ready"].includes(payload.status)) {
+      return json(response, 400, { error: "invalid_scene_bundle_status" });
+    }
+    const versions = await storage.listSceneBundleVersions(bundleId);
+    const target = versions.find((item) => item.version === version);
+    if (!target) return json(response, 404, { error: "scene_bundle_version_not_found" });
+    if (payload.status === "cleanup-ready") {
+      const rooms = await storage.listRooms();
+      if (rooms.some((room) => room.sceneBundleUrl === target.publicUrl)) {
+        return json(response, 409, { error: "scene_bundle_version_still_bound" });
+      }
+    }
+    const updated = await storage.updateSceneBundle(bundleId, {
+      version,
+      storageKey: target.storageKey,
+      publicUrl: target.publicUrl,
+      contentType: target.contentType,
+      checksum: target.checksum,
+      sizeBytes: target.sizeBytes,
+      provider: target.provider,
+      status: payload.status,
+      isCurrent: target.isCurrent
+    } as Partial<SceneBundleCreateInput> & { publicUrl: string; provider: SceneBundleProvider; status: SceneBundleRecord["status"]; isCurrent: boolean });
+    json(response, 200, updated);
     return;
   }
 
@@ -466,6 +683,22 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
     const updated = await storage.updateRoom(roomId, payload);
     if (!updated) return json(response, 404, { error: "room_not_found" });
     json(response, 200, { ...updated, roomLink: createRoomLink(updated.roomId, request.headers.host), manifest: await buildManifest(updated.roomId) });
+    return;
+  }
+
+  const roomBindSceneBundleMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)\/bind-scene-bundle$/);
+  if (method === "POST" && roomBindSceneBundleMatch) {
+    if (!isAuthorizedControlPlaneRequest(request)) return json(response, 403, { error: "forbidden" });
+    const roomId = decodeURIComponent(roomBindSceneBundleMatch[1]);
+    const payload = (await parseBody<{ bundleId?: string; version?: string }>(request)) ?? {};
+    if (!payload.bundleId) return json(response, 400, { error: "missing_scene_bundle_id" });
+    const bundle = payload.version
+      ? (await storage.listSceneBundleVersions(payload.bundleId)).find((item) => item.version === payload.version) ?? null
+      : await storage.getSceneBundle(payload.bundleId);
+    if (!bundle) return json(response, 404, { error: "scene_bundle_not_found" });
+    const room = await storage.updateRoom(roomId, { sceneBundleUrl: bundle.publicUrl });
+    if (!room) return json(response, 404, { error: "room_not_found" });
+    json(response, 200, { ...room, roomLink: createRoomLink(room.roomId, request.headers.host), sceneBundle: bundle, currentVersion: getCurrentSceneBundleVersion(bundle) });
     return;
   }
 
@@ -577,5 +810,6 @@ export function startApiServer(port = apiPort) {
 }
 
 if (process.env.NODE_ENV !== "test" && process.env.NOAH_DISABLE_AUTOSTART !== "1") {
+  validateProductionApiEnv();
   startApiServer();
 }

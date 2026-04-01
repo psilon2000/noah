@@ -8,5 +8,8 @@ test("createRoomUrl builds room path", () => {
 });
 
 test("control-plane page starts idle", () => {
-  assert.equal(createControlPlanePageState().publishStatus, "idle");
+  const state = createControlPlanePageState();
+  assert.equal(state.publishStatus, "idle");
+  assert.deepEqual(state.sceneBundles, []);
+  assert.deepEqual(state.sceneBundleVersions, []);
 });

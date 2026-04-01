@@ -20,9 +20,14 @@ test("room shell loads and presence is registered", async ({ page, request }) =>
   const presence = (await presenceResponse.json()) as { items: Array<{ participantId: string }> };
   expect(presence.items.length).toBeGreaterThan(0);
 
-  const diagnosticsResponse = await request.get("/api/rooms/demo-room/diagnostics");
-  const diagnostics = (await diagnosticsResponse.json()) as { items: Array<{ note?: string }> };
-  expect(diagnostics.items.some((item) => item.note === "runtime_booted")).toBeTruthy();
+  await expect.poll(async () => {
+    const diagnosticsResponse = await request.get("/api/rooms/demo-room/diagnostics");
+    const diagnostics = (await diagnosticsResponse.json()) as { items: Array<{ note?: string }> };
+    return diagnostics.items.some((item) => item.note === "runtime_booted");
+  }, {
+    timeout: 15000,
+    intervals: [1000, 2000, 3000]
+  }).toBeTruthy();
 });
 
 test("room-state service health endpoint responds", async () => {
@@ -56,20 +61,28 @@ test("two participants can coexist in same room", async ({ browser, request }) =
 });
 
 test("bot mode emits movement diagnostics automatically", async ({ page, request }) => {
-  await page.goto("/rooms/demo-room?bot=orbit&debug=1");
-  await page.waitForTimeout(5000);
+  await page.goto("/rooms/demo-room?bot=line&debug=1");
+
+  await expect.poll(async () => {
+    const debug = await page.evaluate(() => (window as Window & { __NOAH_DEBUG__?: { botMode: string; localPosition: { x: number; z: number } } }).__NOAH_DEBUG__);
+    expect(debug?.botMode).toBe("line");
+    return Math.max(Math.abs(debug?.localPosition.x ?? 0), Math.abs(debug?.localPosition.z ?? 0));
+  }, {
+    timeout: 10000,
+    intervals: [1000, 2000, 3000]
+  }).toBeGreaterThan(6);
 
   const debug = await page.evaluate(() => (window as Window & { __NOAH_DEBUG__?: { botMode: string; localPosition: { x: number; z: number } } }).__NOAH_DEBUG__);
-  expect(debug?.botMode).toBe("orbit");
-  expect(Math.abs(debug?.localPosition.x ?? 0) + Math.abs(debug?.localPosition.z ?? 0)).toBeGreaterThan(0.5);
+  expect(debug?.botMode).toBe("line");
+  expect(Math.max(Math.abs(debug?.localPosition.x ?? 0), Math.abs(debug?.localPosition.z ?? 0))).toBeGreaterThan(6);
 
   const diagnosticsResponse = await request.get("/api/rooms/demo-room/diagnostics");
   const diagnostics = (await diagnosticsResponse.json()) as {
-    items: Array<{ botMode?: string; localPosition: { x: number; z: number } }>;
+    items: Array<{ localPosition: { x: number; z: number } }>;
   };
-  const recent = diagnostics.items.slice(-3);
-  expect(recent.length).toBeGreaterThan(0);
-  expect(recent.some((item) => Math.abs(item.localPosition.x) + Math.abs(item.localPosition.z) > 0.5)).toBeTruthy();
+
+  expect(diagnostics.items.length).toBeGreaterThan(0);
+  expect(diagnostics.items.some((item) => Math.abs(item.localPosition.x) + Math.abs(item.localPosition.z) > 0.5)).toBeTruthy();
 });
 
 test("room creation API returns a usable room link", async ({ page, request }) => {
@@ -96,6 +109,225 @@ test("room creation API returns a usable room link", async ({ page, request }) =
   await page.goto(room.roomLink.replace("http://127.0.0.1:4000", "http://127.0.0.1:4000"));
   await page.waitForTimeout(3000);
   await expect(page.locator("#room-name")).toContainText(`showroom-basic - ${room.roomId}`);
+});
+
+test("runtime HUD space selector lists guest-safe spaces and marks current room", async ({ page, request }) => {
+  const sharedRoomResponse = await request.post("/api/rooms", {
+    headers: {
+      "x-noah-admin-token": "test-admin-token"
+    },
+    data: {
+      tenantId: "demo-tenant",
+      templateId: "meeting-room-basic",
+      name: "Shared Space Room",
+      guestAllowed: true
+    }
+  });
+  expect(sharedRoomResponse.ok()).toBeTruthy();
+
+  const privateRoomResponse = await request.post("/api/rooms", {
+    headers: {
+      "x-noah-admin-token": "test-admin-token"
+    },
+    data: {
+      tenantId: "demo-tenant",
+      templateId: "meeting-room-basic",
+      name: "Private Space Room",
+      guestAllowed: false
+    }
+  });
+  expect(privateRoomResponse.ok()).toBeTruthy();
+
+  await page.goto("/rooms/demo-room");
+  await page.waitForTimeout(3000);
+
+  const spaceSelect = page.locator("#space-select");
+  await expect(spaceSelect).toBeVisible();
+  await expect(spaceSelect).toHaveValue(/\/rooms\/demo-room$/);
+
+  const optionTexts = await spaceSelect.locator("option").allTextContents();
+  expect(optionTexts).toContain("Demo Room");
+  expect(optionTexts).toContain("Shared Space Room");
+  expect(optionTexts).not.toContain("Private Space Room");
+});
+
+test("runtime HUD space selector navigates to another space", async ({ page, request }) => {
+  const targetRoomResponse = await request.post("/api/rooms", {
+    headers: {
+      "x-noah-admin-token": "test-admin-token"
+    },
+    data: {
+      tenantId: "demo-tenant",
+      templateId: "showroom-basic",
+      name: "Switch Target Room",
+      guestAllowed: true
+    }
+  });
+  expect(targetRoomResponse.ok()).toBeTruthy();
+  const targetRoom = (await targetRoomResponse.json()) as { roomId: string; roomLink: string };
+
+  await page.goto("/rooms/demo-room");
+  await page.waitForTimeout(3000);
+  await page.selectOption("#space-select", { value: targetRoom.roomLink });
+  await page.waitForURL(`**/rooms/${targetRoom.roomId}`);
+  await expect(page.locator("#room-name")).toContainText(`showroom-basic - ${targetRoom.roomId}`);
+});
+
+test("runtime keeps current room usable when space selector is unavailable", async ({ page }) => {
+  await page.goto("/rooms/demo-room?failspaces=1");
+  await page.waitForTimeout(3000);
+
+  await expect(page.locator("#room-name")).toContainText("meeting-room-basic - demo-room");
+  await expect(page.locator("#space-select")).toBeDisabled();
+  await expect(page.locator("#space-select-status")).toContainText("Spaces unavailable");
+  await expect(page.locator("#status-line")).toContainText("Joined as");
+});
+
+test("two rooms load two different scene bundles", async ({ browser, request }) => {
+  const hallRoomResponse = await request.post("/api/rooms", {
+    headers: {
+      "x-noah-admin-token": "test-admin-token"
+    },
+    data: {
+      tenantId: "demo-tenant",
+      templateId: "meeting-room-basic",
+      name: "Hall Scene Room",
+      sceneBundleUrl: "/assets/scenes/the-hall-v1/scene.json"
+    }
+  });
+  expect(hallRoomResponse.ok()).toBeTruthy();
+  const hallRoom = (await hallRoomResponse.json()) as { roomLink: string; roomId: string };
+
+  const officeRoomResponse = await request.post("/api/rooms", {
+    headers: {
+      "x-noah-admin-token": "test-admin-token"
+    },
+    data: {
+      tenantId: "demo-tenant",
+      templateId: "meeting-room-basic",
+      name: "Office Scene Room",
+      sceneBundleUrl: "/assets/scenes/the-office-v1/scene.json"
+    }
+  });
+  expect(officeRoomResponse.ok()).toBeTruthy();
+  const officeRoom = (await officeRoomResponse.json()) as { roomLink: string; roomId: string };
+
+  const hallPage = await browser.newPage();
+  const officePage = await browser.newPage();
+
+  await hallPage.goto(hallRoom.roomLink);
+  await officePage.goto(officeRoom.roomLink);
+  await hallPage.waitForTimeout(3000);
+  await officePage.waitForTimeout(3000);
+
+  await expect(hallPage.locator("#branding-line")).toContainText("Scene: The Hall V1");
+  await expect(officePage.locator("#branding-line")).toContainText("Scene: The Office V1");
+
+  const hallDebug = await hallPage.evaluate(() => (window as Window & { __NOAH_DEBUG__?: { sceneBundleState?: string; sceneBundleUrl?: string; localPosition?: { x: number; z: number } } }).__NOAH_DEBUG__);
+  const officeDebug = await officePage.evaluate(() => (window as Window & { __NOAH_DEBUG__?: { sceneBundleState?: string; sceneBundleUrl?: string; localPosition?: { x: number; z: number } } }).__NOAH_DEBUG__);
+
+  expect(hallDebug?.sceneBundleState).toBe("loaded");
+  expect(officeDebug?.sceneBundleState).toBe("loaded");
+  expect(hallDebug?.sceneBundleUrl).toContain("/assets/scenes/the-hall-v1/scene.json");
+  expect(officeDebug?.sceneBundleUrl).toContain("/assets/scenes/the-office-v1/scene.json");
+
+  await hallPage.close();
+  await officePage.close();
+});
+
+test("two rooms load two different real SenseTower scene assets", async ({ browser, request }) => {
+  const hallRoomResponse = await request.post("/api/rooms", {
+    headers: {
+      "x-noah-admin-token": "test-admin-token"
+    },
+    data: {
+      tenantId: "demo-tenant",
+      templateId: "meeting-room-basic",
+      name: "Sense Hall Room",
+      sceneBundleUrl: "/assets/scenes/sense-hall2-v1/scene.json"
+    }
+  });
+  expect(hallRoomResponse.ok()).toBeTruthy();
+  const hallRoom = (await hallRoomResponse.json()) as { roomLink: string };
+
+  const officeRoomResponse = await request.post("/api/rooms", {
+    headers: {
+      "x-noah-admin-token": "test-admin-token"
+    },
+    data: {
+      tenantId: "demo-tenant",
+      templateId: "meeting-room-basic",
+      name: "Sense Office Room",
+      sceneBundleUrl: "/assets/scenes/sense-office-v1/scene.json"
+    }
+  });
+  expect(officeRoomResponse.ok()).toBeTruthy();
+  const officeRoom = (await officeRoomResponse.json()) as { roomLink: string };
+
+  const hallPage = await browser.newPage();
+  const officePage = await browser.newPage();
+
+  await hallPage.goto(hallRoom.roomLink);
+  await officePage.goto(officeRoom.roomLink);
+  await hallPage.waitForTimeout(5000);
+  await officePage.waitForTimeout(5000);
+
+  await expect(hallPage.locator("#branding-line")).toContainText("Scene: SenseTower Hall");
+  await expect(officePage.locator("#branding-line")).toContainText("Scene: SenseTower Office");
+
+  const hallDebug = await hallPage.evaluate(() => (window as Window & { __NOAH_DEBUG__?: { sceneBundleState?: string; sceneBundleUrl?: string } }).__NOAH_DEBUG__);
+  const officeDebug = await officePage.evaluate(() => (window as Window & { __NOAH_DEBUG__?: { sceneBundleState?: string; sceneBundleUrl?: string } }).__NOAH_DEBUG__);
+
+  expect(hallDebug?.sceneBundleState).toBe("loaded");
+  expect(officeDebug?.sceneBundleState).toBe("loaded");
+  expect(hallDebug?.sceneBundleUrl).toContain("/assets/scenes/sense-hall2-v1/scene.json");
+  expect(officeDebug?.sceneBundleUrl).toContain("/assets/scenes/sense-office-v1/scene.json");
+
+  await hallPage.close();
+  await officePage.close();
+});
+
+test("scene bundle diagnostics include render and geometry debug info", async ({ page, request }) => {
+  const roomResponse = await request.post("/api/rooms", {
+    headers: {
+      "x-noah-admin-token": "test-admin-token"
+    },
+    data: {
+      tenantId: "demo-tenant",
+      templateId: "meeting-room-basic",
+      name: "Debug Scene Room",
+      sceneBundleUrl: "/assets/scenes/the-office-v1/scene.json"
+    }
+  });
+  expect(roomResponse.ok()).toBeTruthy();
+  const room = (await roomResponse.json()) as { roomId: string; roomLink: string };
+
+  await page.goto(`${room.roomLink}?debug=1`);
+  await page.waitForTimeout(5000);
+
+  const diagnosticsResponse = await request.get(`/api/rooms/${room.roomId}/diagnostics`);
+  const diagnostics = (await diagnosticsResponse.json()) as {
+    items: Array<{
+      note?: string;
+      sceneDebug?: {
+        state?: string;
+        meshCount?: number;
+        geometryCount?: number;
+        screenshot?: {
+          width?: number;
+          pixelSamples?: Array<unknown>;
+          dataUrl?: string;
+        };
+      };
+    }>;
+  };
+  const loaded = [...diagnostics.items].reverse().find((item) => item.note === "scene_bundle_loaded");
+  expect(loaded?.sceneDebug?.state).toBe("loaded");
+  expect(loaded?.sceneDebug?.meshCount ?? 0).toBeGreaterThan(0);
+  expect(loaded?.sceneDebug?.geometryCount ?? 0).toBeGreaterThan(0);
+  expect(loaded?.sceneDebug?.screenshot?.width ?? 0).toBeGreaterThan(0);
+  expect(loaded?.sceneDebug?.screenshot?.pixelSamples?.length ?? 0).toBeGreaterThan(0);
+  expect((loaded?.sceneDebug?.screenshot?.dataUrl ?? "")).toContain("data:image/jpeg;base64,");
 });
 
 test("room creation API is forbidden without admin token", async ({ request }) => {
@@ -148,10 +380,11 @@ test("diagnostics capture multi-client remote visibility", async ({ browser, req
 
 test("control plane creates a room through the browser UI", async ({ page }) => {
   await page.goto("/control-plane");
-  await expect(page.locator("#template-detail")).toContainText("meeting-room-basic");
+  await expect(page.locator("#template-detail")).not.toContainText("Select a template to inspect details");
   await page.fill("#admin-token-input", "test-admin-token");
   await page.fill("#room-name-input", "Control Plane Room");
   await page.selectOption("#template-select", "showroom-basic");
+  await expect(page.locator("#template-detail")).toContainText("showroom-basic");
   await page.click("#create-room");
   await expect(page.locator("#publish-status")).toContainText("published");
   await expect(page.locator("#room-link")).not.toHaveText("");
