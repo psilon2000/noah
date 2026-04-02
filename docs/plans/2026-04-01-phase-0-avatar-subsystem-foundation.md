@@ -27,68 +27,74 @@
 
 Сначала вынести типы и границы подсистемы: отдельные shared contracts, versioned manifest additions и отдельный `apps/runtime-web/src/avatar/` каркас. Затем подготовить asset path: единый avatar catalog/recipe contract, pack loader с поддержкой `meshopt`/`KTX2`/`draco`, validator и CI checks. После этого добавить минимальный sandbox/debug flow, который локально грузит avatar pack, даёт переключать пресеты и подтверждает fallback при ошибке загрузки. Всё, что относится к сетевому pose sync, lipsync, ногам и seating, оставить за пределами фазы.
 
+## Статус
+
+- Обновлено по фактическому прогрессу на `2026-04-02`.
+- Уже сделано: shared contracts, manifest/avatar config, asset validator + `pnpm validate:avatars`, technical avatar fixtures, reserved feature flags, sandbox/debug flow, diagnostics API, control-plane fields для `avatarConfig`, несколько extraction pass из `apps/runtime-web/src/main.ts`.
+- Ещё не закрыто полностью: явная фиксация/удаление legacy manifest fields, отдельная проверяемая backfill/migration policy для существующих persisted room records, финальный DoD review по всем пунктам как по завершённой фазе.
+
 ## Задачи
 
 ### 1. Зафиксировать Phase 0 contracts
 
-- [ ] Добавить в `packages/shared-types` отдельные модули `avatar.ts`, `avatar-recipe.ts`, `avatar-transport.ts`.
-- [ ] Описать и экспортировать `AvatarInputMode`, `AvatarReliableState`, `CompactPoseFrame`, `AvatarRecipeV1` с явным `schemaVersion`/`recipeVersion`.
-- [ ] Зафиксировать contract для avatar catalog `v1`: идентификатор pack'а, список пресетов, ссылки на thumbnails, recipe mapping, rig id и asset version.
-- [ ] Зафиксировать `humanoid-v1` как единственный допустимый rig id для Phase 0.
-- [ ] Добавить unit-тесты на compile/runtime-совместимость новых shared contracts.
+- [x] Добавить в `packages/shared-types` отдельные модули `avatar.ts`, `avatar-recipe.ts`, `avatar-transport.ts`.
+- [x] Описать и экспортировать `AvatarInputMode`, `AvatarReliableState`, `CompactPoseFrame`, `AvatarRecipeV1` с явным `schemaVersion`/`recipeVersion`.
+- [x] Зафиксировать contract для avatar catalog `v1`: идентификатор pack'а, список пресетов, ссылки на thumbnails, recipe mapping, rig id и asset version.
+- [x] Зафиксировать `humanoid-v1` как единственный допустимый rig id для Phase 0.
+- [x] Добавить unit-тесты на compile/runtime-совместимость новых shared contracts.
 
 ### 2. Подготовить минимальный runtime/API contract для Phase 0
 
-- [ ] Определить минимальные manifest additions для Phase 0: `avatarsEnabled`, `avatarCatalogUrl`, `avatarQualityProfile`, `avatarFallbackCapsulesEnabled`.
-- [ ] Обновить contract `RoomManifest` в API/runtime/shared types, чтобы avatar flags и avatar catalog URL были явно описанными без расширения realtime transport в этой фазе.
+- [x] Определить минимальные manifest additions для Phase 0: `avatarsEnabled`, `avatarCatalogUrl`, `avatarQualityProfile`, `avatarFallbackCapsulesEnabled`.
+- [x] Обновить contract `RoomManifest` в API/runtime/shared types, чтобы avatar flags и avatar catalog URL были явно описанными без расширения realtime transport в этой фазе.
 - [ ] Если текущие room records не содержат нужных полей, добавить backfill/migration только для manifest-level avatar config.
 - [ ] Зафиксировать, какие legacy manifest fields временно сосуществуют с новым contract, а какие можно удалить после завершения миграции.
-- [ ] Покрыть тестами manifest build/read path для rooms с avatars enabled и disabled.
+- [x] Покрыть тестами manifest build/read path для rooms с avatars enabled и disabled.
 
 ### 3. Выделить каркас avatar subsystem в runtime
 
-- [ ] Создать `apps/runtime-web/src/avatar/` и завести минимум файлов Phase 0: `avatar-types.ts`, `avatar-catalog.ts`, `avatar-loader.ts`, `avatar-instance.ts`, `avatar-registry.ts`, `avatar-reliable-state.ts`, `avatar-debug.ts`.
+- [x] Создать `apps/runtime-web/src/avatar/` и завести минимум файлов Phase 0: `avatar-types.ts`, `avatar-catalog.ts`, `avatar-loader.ts`, `avatar-instance.ts`, `avatar-registry.ts`, `avatar-reliable-state.ts`, `avatar-debug.ts`.
 - [ ] Оставить в `main.ts` только orchestration layer и точки подключения avatar subsystem.
-- [ ] Не создавать в этой фазе рабочую реализацию `avatar-ik`, `avatar-locomotion`, `avatar-lipsync`, `avatar-seating`, но при необходимости добавить пустые интерфейсы/заглушки только там, где это помогает зафиксировать boundary.
-- [ ] Зафиксировать, что `CompactPoseFrame` и transport-related shared types вводятся как contracts only и не требуют runtime wiring в `apps/room-state`/`room-state-client` в рамках Phase 0.
-- [ ] Выделить отдельное avatar debug state/API вместо дальнейшего роста общего runtime debug payload.
-- [ ] Добавить unit-тесты на инициализацию avatar registry/loader/debug state без реального room networking.
+- [x] Не создавать в этой фазе рабочую реализацию `avatar-ik`, `avatar-locomotion`, `avatar-lipsync`, `avatar-seating`, но при необходимости добавить пустые интерфейсы/заглушки только там, где это помогает зафиксировать boundary.
+- [x] Зафиксировать, что `CompactPoseFrame` и transport-related shared types вводятся как contracts only и не требуют runtime wiring в `apps/room-state`/`room-state-client` в рамках Phase 0.
+- [x] Выделить отдельное avatar debug state/API вместо дальнейшего роста общего runtime debug payload.
+- [x] Добавить unit-тесты на инициализацию avatar registry/loader/debug state без реального room networking.
 
 ### 4. Реализовать avatar asset loading path
 
-- [ ] Расширить `apps/runtime-web/src/scene-loader.ts` или вынести общий loader helper так, чтобы avatar path использовал `GLTFLoader` с `KTX2Loader`, `MeshoptDecoder` и `DRACOLoader` fallback.
-- [ ] Подготовить отдельный avatar loader API, который валидирует manifest/catalog до инстанцирования сцены.
-- [ ] Сделать так, чтобы сбой загрузки одного пресета или одного recipe entry не валил весь runtime.
-- [ ] Реализовать fallback path в capsule avatars при asset load failure, несовместимом rig/recipe или validator reject.
-- [ ] Покрыть тестами init/failure/fallback path для avatar loader.
+- [x] Расширить `apps/runtime-web/src/scene-loader.ts` или вынести общий loader helper так, чтобы avatar path использовал `GLTFLoader` с `KTX2Loader`, `MeshoptDecoder` и `DRACOLoader` fallback.
+- [x] Подготовить отдельный avatar loader API, который валидирует manifest/catalog до инстанцирования сцены.
+- [x] Сделать так, чтобы сбой загрузки одного пресета или одного recipe entry не валил весь runtime.
+- [x] Реализовать fallback path в capsule avatars при asset load failure, несовместимом rig/recipe или validator reject.
+- [x] Покрыть тестами init/failure/fallback path для avatar loader.
 
 ### 5. Ввести avatar asset contracts и pipeline checks
 
-- [ ] Зафиксировать структуру runtime-ресурсов для `public/assets/avatars/`: `catalog.v1.json`, `avatar-pack.v1.glb`, `avatar-recipes.v1.json`, `thumbs/*`.
-- [ ] Добавить в `packages/asset-pipeline` avatar validator с отдельным входным форматом для pack/catalog/recipes.
-- [ ] Реализовать проверяемые budget checks: triangles, materials, textures, file size.
-- [ ] Реализовать required checks: morph targets, animation clips, rig compatibility, identical skeleton signature across presets.
-- [ ] Добавить CI gate для avatar pack и зафиксировать отдельную blocking command/job, которая фейлит merge при нарушении rig/morph/clip/budget checks.
-- [ ] Подготовить технический avatar pack/fixtures для локальной проверки sandbox path.
-- [ ] Зафиксировать acceptance rule для technical assets: pack считается достаточным для Phase 0, если содержит 10 переключаемых пресетов, использует `humanoid-v1` и проходит validator checks без требования финального art polish.
+- [x] Зафиксировать структуру runtime-ресурсов для `public/assets/avatars/`: `catalog.v1.json`, `avatar-pack.v1.glb`, `avatar-recipes.v1.json`, `thumbs/*`.
+- [x] Добавить в `packages/asset-pipeline` avatar validator с отдельным входным форматом для pack/catalog/recipes.
+- [x] Реализовать проверяемые budget checks: triangles, materials, textures, file size.
+- [x] Реализовать required checks: morph targets, animation clips, rig compatibility, identical skeleton signature across presets.
+- [x] Добавить CI gate для avatar pack и зафиксировать отдельную blocking command/job, которая фейлит merge при нарушении rig/morph/clip/budget checks.
+- [x] Подготовить технический avatar pack/fixtures для локальной проверки sandbox path.
+- [x] Зафиксировать acceptance rule для technical assets: pack считается достаточным для Phase 0, если содержит 10 переключаемых пресетов, использует `humanoid-v1` и проходит validator checks без требования финального art polish.
 
 ### 6. Добавить feature flags и debug/sandbox flow
 
-- [ ] Расширить API health/manifest feature flags: `avatarsEnabled`, `avatarPoseBinaryEnabled`, `avatarLipsyncEnabled`, `avatarLegIKEnabled`, `avatarSeatingEnabled`, `avatarCustomizationEnabled`, `avatarFallbackCapsulesEnabled`.
-- [ ] Определить, какие из них реально участвуют в Phase 0 runtime flow, а какие пока только резервируются и прокидываются контрактом.
-- [ ] Добавить sandbox/debug режим, в котором runtime может локально загрузить avatar pack и переключать все пресеты без room networking.
-- [ ] Зафиксировать форму sandbox entrypoint: отдельный route, query flag или debug page.
-- [ ] Вынести avatar-related debug UI из общего ad-hoc debug panel в отдельный блок/модуль.
-- [ ] Показать в avatar diagnostics минимум: load status, selected preset, validator result, fallback reason.
-- [ ] Проверить, что выключение `avatarsEnabled` и/или срабатывание fallback-флага возвращает runtime в capsule path.
+- [x] Расширить API health/manifest feature flags: `avatarsEnabled`, `avatarPoseBinaryEnabled`, `avatarLipsyncEnabled`, `avatarLegIKEnabled`, `avatarSeatingEnabled`, `avatarCustomizationEnabled`, `avatarFallbackCapsulesEnabled`.
+- [x] Определить, какие из них реально участвуют в Phase 0 runtime flow, а какие пока только резервируются и прокидываются контрактом.
+- [x] Добавить sandbox/debug режим, в котором runtime может локально загрузить avatar pack и переключать все пресеты без room networking.
+- [x] Зафиксировать форму sandbox entrypoint: отдельный route, query flag или debug page.
+- [x] Вынести avatar-related debug UI из общего ad-hoc debug panel в отдельный блок/модуль.
+- [x] Показать в avatar diagnostics минимум: load status, selected preset, validator result, fallback reason.
+- [x] Проверить, что выключение `avatarsEnabled` и/или срабатывание fallback-флага возвращает runtime в capsule path.
 
 ### 7. Проверить завершённость фазы по DoD
 
-- [ ] Подтвердить, что в репозитории есть отдельные avatar types и runtime modules, а не только изменения в `main.ts`.
-- [ ] Подтвердить, что runtime умеет локально загрузить avatar pack и показать все 10 пресетов в sandbox/debug режиме.
-- [ ] Подтвердить, что каждый пресет проходит validator checks: rig compatibility, morphs, clips, budgets.
-- [ ] Подтвердить, что avatars включаются и выключаются feature flag'ом.
-- [ ] Подтвердить, что при load failure runtime деградирует в capsule avatars без падения room flow.
+- [x] Подтвердить, что в репозитории есть отдельные avatar types и runtime modules, а не только изменения в `main.ts`.
+- [x] Подтвердить, что runtime умеет локально загрузить avatar pack и показать все 10 пресетов в sandbox/debug режиме.
+- [x] Подтвердить, что каждый пресет проходит validator checks: rig compatibility, morphs, clips, budgets.
+- [x] Подтвердить, что avatars включаются и выключаются feature flag'ом.
+- [x] Подтвердить, что при load failure runtime деградирует в capsule avatars без падения room flow.
 
 ## Затронутые файлы/модули
 
@@ -116,28 +122,28 @@
 ## Тест-план
 
 - **Unit**
-- [ ] Тесты на schema/type contracts для `AvatarReliableState`, `CompactPoseFrame`, `AvatarRecipeV1`, avatar catalog `v1`.
-- [ ] Тесты на manifest feature flag resolution и avatar manifest fields.
-- [ ] Тесты на avatar loader init path, validator reject path и capsule fallback path.
-- [ ] Тесты на avatar validator budgets, morph checks, clip checks, rig compatibility и skeleton signature.
+- [x] Тесты на schema/type contracts для `AvatarReliableState`, `CompactPoseFrame`, `AvatarRecipeV1`, avatar catalog `v1`.
+- [x] Тесты на manifest feature flag resolution и avatar manifest fields.
+- [x] Тесты на avatar loader init path, validator reject path и capsule fallback path.
+- [x] Тесты на avatar validator budgets, morph checks, clip checks, rig compatibility и skeleton signature.
 
 - **Integration**
-- [ ] Локальная проверка sandbox/debug flow: runtime поднимается, грузит technical avatar pack и даёт переключить все 10 пресетов.
-- [ ] Интеграционная проверка API/runtime manifest path с `avatarsEnabled=true` и `avatarsEnabled=false`.
+- [x] Локальная проверка sandbox/debug flow: runtime поднимается, грузит technical avatar pack и даёт переключить все 10 пресетов.
+- [x] Интеграционная проверка API/runtime manifest path с `avatarsEnabled=true` и `avatarsEnabled=false`.
 - [ ] Интеграционная проверка миграции/backfill: существующие room records получают нужные avatar fields без ручной правки каждой комнаты.
-- [ ] Интеграционная проверка, что `CompactPoseFrame`/transport contracts можно импортировать и использовать как shared types без включения нового binary relay path.
+- [x] Интеграционная проверка, что `CompactPoseFrame`/transport contracts можно импортировать и использовать как shared types без включения нового binary relay path.
 
 - **E2E / smoke**
 - [ ] Прогнать базовый локальный набор проверок проекта: `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`.
-- [ ] Если sandbox/debug flow попадает в browser path, добавить smoke на открытие runtime и успешную загрузку avatar sandbox режима.
-- [ ] Запускать avatar pack validation в отдельной blocking CI job/command и считать её обязательной частью Phase 0 verification.
+- [x] Если sandbox/debug flow попадает в browser path, добавить smoke на открытие runtime и успешную загрузку avatar sandbox режима.
+- [x] Запускать avatar pack validation в отдельной blocking CI job/command и считать её обязательной частью Phase 0 verification.
 
 - **Негативные кейсы**
-- [ ] Невалидный `avatarCatalogUrl` не приводит к падению runtime; включается fallback.
-- [ ] Один битый preset/recipe entry не ломает остальные пресеты.
-- [ ] Pack без обязательных morph targets или clips отклоняется validator'ом.
-- [ ] Preset с несовместимым skeleton signature отклоняется validator'ом.
-- [ ] Отключённый `avatarsEnabled` не оставляет runtime в частично инициализированном avatar state.
+- [x] Невалидный `avatarCatalogUrl` не приводит к падению runtime; включается fallback.
+- [x] Один битый preset/recipe entry не ломает остальные пресеты.
+- [x] Pack без обязательных morph targets или clips отклоняется validator'ом.
+- [x] Preset с несовместимым skeleton signature отклоняется validator'ом.
+- [x] Отключённый `avatarsEnabled` не оставляет runtime в частично инициализированном avatar state.
 - [ ] Миграция не оставляет room manifest в промежуточном несогласованном состоянии.
 
 ## Риски и откаты (roll-back)
