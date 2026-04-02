@@ -30,8 +30,8 @@
 ## Статус
 
 - Обновлено по фактическому прогрессу на `2026-04-02`.
-- Уже сделано: shared contracts, manifest/avatar config, asset validator + `pnpm validate:avatars`, technical avatar fixtures, reserved feature flags, sandbox/debug flow, diagnostics API, control-plane fields для `avatarConfig`, несколько extraction pass из `apps/runtime-web/src/main.ts`.
-- Ещё не закрыто полностью: явная фиксация/удаление legacy manifest fields, отдельная проверяемая backfill/migration policy для существующих persisted room records, финальный DoD review по всем пунктам как по завершённой фазе.
+- Phase 0 по сути реализована: contracts, manifest/avatar config, asset validator + `pnpm validate:avatars`, technical avatar fixtures, reserved feature flags, sandbox/debug flow, diagnostics API, control-plane fields для `avatarConfig`, backfill/legacy normalization и несколько extraction pass из `apps/runtime-web/src/main.ts` уже в репозитории.
+- Оставшийся хвост носит характер финальной фиксации статуса: при желании можно отдельным follow-up убрать legacy acceptance path после завершения периода миграции, но для самой Phase 0 он больше не блокирует DoD.
 
 ## Задачи
 
@@ -47,14 +47,14 @@
 
 - [x] Определить минимальные manifest additions для Phase 0: `avatarsEnabled`, `avatarCatalogUrl`, `avatarQualityProfile`, `avatarFallbackCapsulesEnabled`.
 - [x] Обновить contract `RoomManifest` в API/runtime/shared types, чтобы avatar flags и avatar catalog URL были явно описанными без расширения realtime transport в этой фазе.
-- [ ] Если текущие room records не содержат нужных полей, добавить backfill/migration только для manifest-level avatar config.
-- [ ] Зафиксировать, какие legacy manifest fields временно сосуществуют с новым contract, а какие можно удалить после завершения миграции.
+- [x] Если текущие room records не содержат нужных полей, добавить backfill/migration только для manifest-level avatar config.
+- [x] Зафиксировать, какие legacy manifest fields временно сосуществуют с новым contract, а какие можно удалить после завершения миграции.
 - [x] Покрыть тестами manifest build/read path для rooms с avatars enabled и disabled.
 
 ### 3. Выделить каркас avatar subsystem в runtime
 
 - [x] Создать `apps/runtime-web/src/avatar/` и завести минимум файлов Phase 0: `avatar-types.ts`, `avatar-catalog.ts`, `avatar-loader.ts`, `avatar-instance.ts`, `avatar-registry.ts`, `avatar-reliable-state.ts`, `avatar-debug.ts`.
-- [~] Оставить в `main.ts` только orchestration layer и точки подключения avatar subsystem. Основные avatar/scene ветки уже вынесены в отдельные session/runtime/debug/fallback модули; остаётся финальный cleanup общего boot/media sequencing.
+- [x] Оставить в `main.ts` только orchestration layer и точки подключения avatar subsystem. Основные avatar/scene/runtime startup ветки вынесены в отдельные session/runtime/debug/fallback/boot helper модули; remaining top-level flow в `main.ts` носит orchestration характер.
 - [x] Не создавать в этой фазе рабочую реализацию `avatar-ik`, `avatar-locomotion`, `avatar-lipsync`, `avatar-seating`, но при необходимости добавить пустые интерфейсы/заглушки только там, где это помогает зафиксировать boundary.
 - [x] Зафиксировать, что `CompactPoseFrame` и transport-related shared types вводятся как contracts only и не требуют runtime wiring в `apps/room-state`/`room-state-client` в рамках Phase 0.
 - [x] Выделить отдельное avatar debug state/API вместо дальнейшего роста общего runtime debug payload.
@@ -130,7 +130,7 @@
 - **Integration**
 - [x] Локальная проверка sandbox/debug flow: runtime поднимается, грузит technical avatar pack и даёт переключить все 10 пресетов.
 - [x] Интеграционная проверка API/runtime manifest path с `avatarsEnabled=true` и `avatarsEnabled=false`.
-- [ ] Интеграционная проверка миграции/backfill: существующие room records получают нужные avatar fields без ручной правки каждой комнаты.
+- [x] Интеграционная проверка миграции/backfill: существующие room records получают нужные avatar fields без ручной правки каждой комнаты.
 - [x] Интеграционная проверка, что `CompactPoseFrame`/transport contracts можно импортировать и использовать как shared types без включения нового binary relay path.
 
 - **E2E / smoke**
@@ -144,7 +144,7 @@
 - [x] Pack без обязательных morph targets или clips отклоняется validator'ом.
 - [x] Preset с несовместимым skeleton signature отклоняется validator'ом.
 - [x] Отключённый `avatarsEnabled` не оставляет runtime в частично инициализированном avatar state.
-- [ ] Миграция не оставляет room manifest в промежуточном несогласованном состоянии.
+- [x] Миграция не оставляет room manifest в промежуточном несогласованном состоянии.
 
 ## Риски и откаты (roll-back)
 
