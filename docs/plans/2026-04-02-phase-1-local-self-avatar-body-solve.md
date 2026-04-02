@@ -41,6 +41,30 @@
 5. При ошибке input/solve/asset path runtime деградирует в `local-safe` path без поломки room controls.
 6. При `avatarsEnabled=false` runtime возвращается к текущему поведению без регрессии.
 
+## Статус на 2026-04-02
+
+### Уже сделано
+
+- [x] Локальный self-avatar поднимается в обычной комнате при `avatarsEnabled=true`, а не только в sandbox.
+- [x] Есть отдельный local avatar controller, snapshot contract и transport-ready preview.
+- [x] Есть self-visibility rules для `desktop`, `mobile`, `vr` и явные fallback profiles.
+- [x] Есть базовый upper-body solve, procedural locomotion/animation layer и clip fallback.
+- [x] Есть preset switching для self-avatar в обычной комнате.
+- [x] Есть безопасный fallback path для broken catalog / partial XR input / clip fallback.
+- [x] Есть outbound avatar publish boundary и inbound avatar message parsing через `room-state`.
+- [x] Есть remote avatar runtime module со stub rendering, participant model и debug state.
+- [x] Локальные проверки и staging verification многократно пройдены: `pnpm test`, `pnpm test:e2e`, staging deploy gate.
+
+### Осталось до формального закрытия Phase 1
+
+- [ ] Финально пройти manual VR checklist на реальном WebXR/Quest path и зафиксировать результат.
+- [ ] Решить, считаем ли текущий remote stub достаточным для границы Phase 1 или выносим его целиком в ранний Phase 2 scope.
+- [ ] Сверить Definition of Done с фактической реализацией и зачекать финальные пункты после ручной VR-проверки.
+
+### Практический вывод
+
+Phase 1 по коду и автопроверкам находится в состоянии near-done: core local avatar path, diagnostics, transport boundary, remote stub path и staging gate уже есть. Главный незакрытый хвост — финальная ручная VR-проверка и короткое решение по тому, считать ли текущий remote stub частью финала Phase 1 или стартом Phase 2.
+
 ## Задачи
 
 ### 1. Подключить self-avatar к обычному room flow
