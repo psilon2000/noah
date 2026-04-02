@@ -54,7 +54,7 @@
 ### 3. Выделить каркас avatar subsystem в runtime
 
 - [x] Создать `apps/runtime-web/src/avatar/` и завести минимум файлов Phase 0: `avatar-types.ts`, `avatar-catalog.ts`, `avatar-loader.ts`, `avatar-instance.ts`, `avatar-registry.ts`, `avatar-reliable-state.ts`, `avatar-debug.ts`.
-- [ ] Оставить в `main.ts` только orchestration layer и точки подключения avatar subsystem.
+- [~] Оставить в `main.ts` только orchestration layer и точки подключения avatar subsystem. Основные avatar/scene ветки уже вынесены в отдельные session/runtime/debug/fallback модули; остаётся финальный cleanup общего boot/media sequencing.
 - [x] Не создавать в этой фазе рабочую реализацию `avatar-ik`, `avatar-locomotion`, `avatar-lipsync`, `avatar-seating`, но при необходимости добавить пустые интерфейсы/заглушки только там, где это помогает зафиксировать boundary.
 - [x] Зафиксировать, что `CompactPoseFrame` и transport-related shared types вводятся как contracts only и не требуют runtime wiring в `apps/room-state`/`room-state-client` в рамках Phase 0.
 - [x] Выделить отдельное avatar debug state/API вместо дальнейшего роста общего runtime debug payload.
@@ -134,7 +134,7 @@
 - [x] Интеграционная проверка, что `CompactPoseFrame`/transport contracts можно импортировать и использовать как shared types без включения нового binary relay path.
 
 - **E2E / smoke**
-- [ ] Прогнать базовый локальный набор проверок проекта: `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`.
+- [x] Прогнать базовый локальный набор проверок проекта: `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`.
 - [x] Если sandbox/debug flow попадает в browser path, добавить smoke на открытие runtime и успешную загрузку avatar sandbox режима.
 - [x] Запускать avatar pack validation в отдельной blocking CI job/command и считать её обязательной частью Phase 0 verification.
 
