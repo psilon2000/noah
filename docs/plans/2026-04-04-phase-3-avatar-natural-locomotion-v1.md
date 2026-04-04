@@ -58,7 +58,7 @@
 - [x] Зафиксировать границу фазы: работаем поверх текущего procedural/stub runtime и не делаем обязательным новый avatar rig pack.
 - [x] Зафиксировать, какие улучшения обязательны для всех аватаров, а какие включаются только для `near avatars` или при включенном `avatarLegIkEnabled`.
 - [x] Зафиксировать минимальный Phase 3 remote contract: какие поля уже берём из Phase 2 `pose/root/locomotion` path, какие поля обязательны для gait classification, и какой backward-compatible fallback применяется при их отсутствии.
-- [ ] Зафиксировать deterministic fallback: при выключенном `avatarLegIkEnabled` или runtime incompatibility система возвращается к текущему stable body/pose path без поломки room flow.
+- [x] Зафиксировать deterministic fallback: при выключенном `avatarLegIkEnabled` или runtime incompatibility система возвращается к текущему stable body/pose path без поломки room flow.
 
 ### 2. Доработать locomotion classifier и transition layer
 
@@ -98,7 +98,7 @@
 
 ### 7. Добавить rollout hooks и diagnostics
 
-- [ ] Использовать существующий флаг `avatarLegIkEnabled` как главный rollout switch для Phase 3, не вводя лишний новый флаг без необходимости.
+- [x] Использовать существующий флаг `avatarLegIkEnabled` как главный rollout switch для Phase 3, не вводя лишний новый флаг без необходимости.
 - [x] Зафиксировать rollout order: сначала classifier/transition layer, потом self apply, потом remote apply, потом `near-avatar` refinement под `avatarLegIkEnabled`.
 - [x] Расширить avatar diagnostics/debug state метриками locomotion state, transition source, gait phase, anti-skating correction и near/far quality mode.
 - [ ] Подготовить debug-friendly traces для сравнения `self` и `remote` поведения на одной и той же траектории.
@@ -138,9 +138,7 @@
 
 ## Осталось до полного закрытия фазы
 
-- Повязать новый Phase 3 path на реальный runtime gate через `avatarLegIkEnabled`, чтобы rollback был не только организационным, но и техническим.
 - Добавить обещанный `record/replay` / deterministic trace harness для self/remote locomotion contract.
-- Обновить `docs/2026-04-01-noah-avatar-system-tz-roadmap.md` под фактический статус Phase 3.
 - Добавить расширенное автоматическое e2e тестирование старого и нового функционала на staging:
   - регрессии базового room/avatar flow,
   - multi-client self/remote locomotion transitions,
