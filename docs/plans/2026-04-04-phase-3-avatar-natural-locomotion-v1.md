@@ -1,6 +1,6 @@
 # План: Phase 3 - natural locomotion, gait solver и body naturalness `v1`
 
-Статус: DRAFT
+Статус: IN_PROGRESS (core delivered, follow-ups remain)
 
 ## Цель
 
@@ -38,65 +38,77 @@
 5. При `avatarLegIkEnabled=false` runtime полностью возвращается к стабильному поведению Phase 2 без поломки avatars и room flow.
 6. Локальный verification suite и `pnpm test:e2e:staging` зелёные, а staging smoke подтверждает отсутствие регрессий в `demo-room` и тяжёлых scene rooms.
 
+## Фактически выполнено
+
+- Реализован shared locomotion classifier/hysteresis для `self` и `remote`.
+- Реализован shared transport contract `state <-> mode` для local snapshot и remote runtime.
+- Реализованы `pelvis/spine refinement`, `body lean`, `turn bias` и profile-aware clamps.
+- Реализованы `anti-foot-skating metric/correction`, `near/far quality mode` и упрощённый `near-avatar foot planting v1`.
+- Расширены avatar diagnostics для locomotion/body/quality/skating состояния.
+- Добавлены unit/runtime/e2e проверки для нового diagnostics и remote/self behavior.
+- Локальная верификация пройдена: `pnpm build`, `pnpm test`, `pnpm test:e2e`.
+- Публикация и staging gate пройдены для commit `571fd2b`.
+- Staging deploy run: `23986540547`.
+
 ## Задачи (чек-лист)
 
 ### 1. Зафиксировать Phase 3 contract
 
-- [ ] Зафиксировать единый locomotion/body contract для `self` и `remote`: одинаковые состояния `idle/walk/strafe/backpedal/turn` и одинаковые базовые правила переходов.
-- [ ] Зафиксировать границу фазы: работаем поверх текущего procedural/stub runtime и не делаем обязательным новый avatar rig pack.
-- [ ] Зафиксировать, какие улучшения обязательны для всех аватаров, а какие включаются только для `near avatars` или при включенном `avatarLegIkEnabled`.
-- [ ] Зафиксировать минимальный Phase 3 remote contract: какие поля уже берём из Phase 2 `pose/root/locomotion` path, какие поля обязательны для gait classification, и какой backward-compatible fallback применяется при их отсутствии.
+- [x] Зафиксировать единый locomotion/body contract для `self` и `remote`: одинаковые состояния `idle/walk/strafe/backpedal/turn` и одинаковые базовые правила переходов.
+- [x] Зафиксировать границу фазы: работаем поверх текущего procedural/stub runtime и не делаем обязательным новый avatar rig pack.
+- [x] Зафиксировать, какие улучшения обязательны для всех аватаров, а какие включаются только для `near avatars` или при включенном `avatarLegIkEnabled`.
+- [x] Зафиксировать минимальный Phase 3 remote contract: какие поля уже берём из Phase 2 `pose/root/locomotion` path, какие поля обязательны для gait classification, и какой backward-compatible fallback применяется при их отсутствии.
 - [ ] Зафиксировать deterministic fallback: при выключенном `avatarLegIkEnabled` или runtime incompatibility система возвращается к текущему stable body/pose path без поломки room flow.
 
 ### 2. Доработать locomotion classifier и transition layer
 
-- [ ] Расширить `apps/runtime-web/src/avatar/avatar-locomotion.ts`, чтобы state machine различала `idle`, forward walk, strafe, backpedal и turn-in-place устойчиво на порогах и коротких сменах направления.
-- [ ] Добавить hysteresis/smoothing на входах `moveX`, `moveZ`, `turnRate`, чтобы убрать дрожание между соседними состояниями.
-- [ ] Ввести отдельные transition rules для `start`, `stop`, `sharp turn`, `strafe-to-forward`, `forward-to-backpedal` без резких визуальных скачков.
-- [ ] Подготовить одинаковый classifier output для self/runtime path и remote/runtime path, чтобы не возникало разных gait decisions для одного и того же движения.
+- [x] Расширить `apps/runtime-web/src/avatar/avatar-locomotion.ts`, чтобы state machine различала `idle`, forward walk, strafe, backpedal и turn-in-place устойчиво на порогах и коротких сменах направления.
+- [x] Добавить hysteresis/smoothing на входах `moveX`, `moveZ`, `turnRate`, чтобы убрать дрожание между соседними состояниями.
+- [x] Ввести отдельные transition rules для `start`, `stop`, `sharp turn`, `strafe-to-forward`, `forward-to-backpedal` без резких визуальных скачков.
+- [x] Подготовить одинаковый classifier output для self/runtime path и remote/runtime path, чтобы не возникало разных gait decisions для одного и того же движения.
 
 ### 3. Усилить animation/gait layer
 
-- [ ] Расширить `apps/runtime-web/src/avatar/avatar-animation.ts` от простого clip selection к blend-aware locomotion pose layer с предсказуемыми весами для `walk`, `strafe`, `backpedal`, `turn`.
-- [ ] Добавить turn-in-place pose/animation behavior без "телепорта ног" и без деградации stationary head/hands tracking.
-- [ ] Ввести smoothing на transitions между клипами/позами, чтобы при быстрых сменах направления не было stop-motion корпуса.
-- [ ] Разделить near/far visual quality: near path получает более выраженный gait/body pass, far path - упрощенный locomotion mode с теми же состояниями, но меньшей стоимостью.
+- [x] Расширить `apps/runtime-web/src/avatar/avatar-animation.ts` от простого clip selection к blend-aware locomotion pose layer с предсказуемыми весами для `walk`, `strafe`, `backpedal`, `turn`.
+- [x] Добавить turn-in-place pose/animation behavior без "телепорта ног" и без деградации stationary head/hands tracking.
+- [x] Ввести smoothing на transitions между клипами/позами, чтобы при быстрых сменах направления не было stop-motion корпуса.
+- [x] Разделить near/far visual quality: near path получает более выраженный gait/body pass, far path - упрощенный locomotion mode с теми же состояниями, но меньшей стоимостью.
 
 ### 4. Добавить pelvis/spine refinement
 
-- [ ] Добавить отдельный `pelvis offset`/weight shift layer, который реагирует на скорость и направление движения, а не только на head/hands solve.
-- [ ] Добавить `spine lean` для `walk/strafe/backpedal` и отдельный `turn body twist` для поворота на месте.
-- [ ] Зафиксировать profile-specific clamps для desktop/mobile/VR, чтобы улучшение корпуса не ломало текущие input profiles.
-- [ ] Обеспечить, что при частичном XR input fallback или неполном remote pose runtime avatar остаётся в правдоподобном upper-body/body state, а не уходит в невалидную позу.
+- [x] Добавить отдельный `pelvis offset`/weight shift layer, который реагирует на скорость и направление движения, а не только на head/hands solve.
+- [x] Добавить `spine lean` для `walk/strafe/backpedal` и отдельный `turn body twist` для поворота на месте.
+- [x] Зафиксировать profile-specific clamps для desktop/mobile/VR, чтобы улучшение корпуса не ломало текущие input profiles.
+- [x] Обеспечить, что при частичном XR input fallback или неполном remote pose runtime avatar остаётся в правдоподобном upper-body/body state, а не уходит в невалидную позу.
 
 ### 5. Ввести anti-foot-skating и near-avatar foot planting
 
-- [ ] Ввести измеряемую `skating metric`, чтобы проверять, когда нижняя часть тела начинает визуально скользить относительно root motion.
-- [ ] Реализовать базовое `lock/unlock` правило для anti-foot-skating на базе root speed, gait phase и transition state.
-- [ ] Добавить упрощённый `near-avatar foot planting v1` без scene-aware collision/terrain logic и без тяжёлой физики.
-- [ ] Ограничить foot planting по distance/LOD/profile, чтобы far avatars и слабые профили не тратили лишний budget.
-- [ ] Зафиксировать fallback для случаев, где planting не может быть надежно вычислен из текущего pose/runtime input.
+- [x] Ввести измеряемую `skating metric`, чтобы проверять, когда нижняя часть тела начинает визуально скользить относительно root motion.
+- [x] Реализовать базовое `lock/unlock` правило для anti-foot-skating на базе root speed, gait phase и transition state.
+- [x] Добавить упрощённый `near-avatar foot planting v1` без scene-aware collision/terrain logic и без тяжёлой физики.
+- [x] Ограничить foot planting по distance/LOD/profile, чтобы far avatars и слабые профили не тратили лишний budget.
+- [x] Зафиксировать fallback для случаев, где planting не может быть надежно вычислен из текущего pose/runtime input.
 
 ### 6. Подключить улучшения к remote runtime
 
-- [ ] Расширить `apps/runtime-web/src/avatar/remote-avatar-runtime.ts`, чтобы remote avatars использовали тот же locomotion/body contract, а не только head/hands/root interpolation.
-- [ ] Восстанавливать locomotion/body state для remote участника из уже доступного root/locomotion stream без требования нового transport payload, если текущих данных достаточно.
-- [ ] Если текущего remote payload недостаточно для устойчивого gait classification, минимально расширить contract Phase 2 совместимым способом и документировать backward-compatible fallback.
-- [ ] Сохранить существующую деградацию к coarse/stub presence path, если remote natural locomotion path временно невалиден или feature flag выключен.
+- [x] Расширить `apps/runtime-web/src/avatar/remote-avatar-runtime.ts`, чтобы remote avatars использовали тот же locomotion/body contract, а не только head/hands/root interpolation.
+- [x] Восстанавливать locomotion/body state для remote участника из уже доступного root/locomotion stream без требования нового transport payload, если текущих данных достаточно.
+- [x] Если текущего remote payload недостаточно для устойчивого gait classification, минимально расширить contract Phase 2 совместимым способом и документировать backward-compatible fallback.
+- [x] Сохранить существующую деградацию к coarse/stub presence path, если remote natural locomotion path временно невалиден или feature flag выключен.
 
 ### 7. Добавить rollout hooks и diagnostics
 
 - [ ] Использовать существующий флаг `avatarLegIkEnabled` как главный rollout switch для Phase 3, не вводя лишний новый флаг без необходимости.
-- [ ] Зафиксировать rollout order: сначала classifier/transition layer, потом self apply, потом remote apply, потом `near-avatar` refinement под `avatarLegIkEnabled`.
-- [ ] Расширить avatar diagnostics/debug state метриками locomotion state, transition source, gait phase, anti-skating correction и near/far quality mode.
+- [x] Зафиксировать rollout order: сначала classifier/transition layer, потом self apply, потом remote apply, потом `near-avatar` refinement под `avatarLegIkEnabled`.
+- [x] Расширить avatar diagnostics/debug state метриками locomotion state, transition source, gait phase, anti-skating correction и near/far quality mode.
 - [ ] Подготовить debug-friendly traces для сравнения `self` и `remote` поведения на одной и той же траектории.
-- [ ] Явно описать, какие признаки считаются сигналом для rollback на staging.
+- [x] Явно описать, какие признаки считаются сигналом для rollback на staging.
 
 ### 8. Документация и завершение фазы
 
 - [ ] Обновить `docs/2026-04-01-noah-avatar-system-tz-roadmap.md` и связанный план, чтобы границы Phase 3 были синхронизированы с фактической реализацией.
-- [ ] Зафиксировать артефакты выхода фазы: `natural locomotion v1`, regression traces, staging evidence и список ограничений для Phase 4+.
-- [ ] Отдельно задокументировать, что Phase 3 не требует нового avatar asset pack, но оставляет точку расширения для richer rigs в будущем.
+- [x] Зафиксировать артефакты выхода фазы: `natural locomotion v1`, regression traces, staging evidence и список ограничений для Phase 4+.
+- [x] Отдельно задокументировать, что Phase 3 не требует нового avatar asset pack, но оставляет точку расширения для richer rigs в будущем.
 
 ## Затронутые файлы/модули (если известно)
 
@@ -119,10 +131,27 @@
 
 ## CI / verification gates
 
-- [ ] Blocking local gate: `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`.
+- [x] Blocking local gate: `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`.
 - [ ] Blocking avatar regression gate: `record/replay` traces и deterministic bot paths для locomotion/body contract.
-- [ ] Blocking published gate: `pnpm test:e2e:staging` после выката на staging.
+- [x] Blocking published gate: `pnpm test:e2e:staging` после выката на staging.
 - [ ] Manual evidence остаётся обязательной, но не заменяет automated gates для self/remote locomotion regressions.
+
+## Осталось до полного закрытия фазы
+
+- Повязать новый Phase 3 path на реальный runtime gate через `avatarLegIkEnabled`, чтобы rollback был не только организационным, но и техническим.
+- Добавить обещанный `record/replay` / deterministic trace harness для self/remote locomotion contract.
+- Обновить `docs/2026-04-01-noah-avatar-system-tz-roadmap.md` под фактический статус Phase 3.
+- Добавить расширенное автоматическое e2e тестирование старого и нового функционала на staging:
+  - регрессии базового room/avatar flow,
+  - multi-client self/remote locomotion transitions,
+  - near/far degrade behavior,
+  - heavy rooms (`Hall`, `BlueOffice`, `ArtGallery`) без regressions по `sceneDebug` и avatar boot order.
+- После автоматических staging checks провести обзорное ручное тестирование как финальный acceptance pass:
+  - desktop/desktop,
+  - desktop + Quest/WebXR,
+  - social-distance interactions рядом,
+  - far-avatar degrade,
+  - turn-in-place / strafe / backpedal / sharp stop.
 
 ## Тест-план
 
