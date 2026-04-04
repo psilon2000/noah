@@ -49,6 +49,8 @@
 - Локальная верификация пройдена: `pnpm build`, `pnpm test`, `pnpm test:e2e`.
 - Публикация и staging gate пройдены для commit `571fd2b`.
 - Staging deploy run: `23986540547`.
+- По результатам ручной проверки на staging новый body-naturalness path не прошёл приёмку: на web улучшение оказалось почти незаметным, а в VR корпус/голова дёргались.
+- В ответ staging contract переведён в безопасный rollback: `FEATURE_AVATAR_LEG_IK=false` на compose staging, при этом кодовый path сохранён за feature flag для доработки.
 
 ## Задачи (чек-лист)
 
@@ -139,7 +141,7 @@
 ## Осталось до полного закрытия фазы
 
 - Добавить обещанный `record/replay` / deterministic trace harness для self/remote locomotion contract.
-- Добавить расширенное автоматическое e2e тестирование старого и нового функционала на staging:
+- После rollback добавить расширенное автоматическое e2e тестирование старого и нового функционала на staging:
   - регрессии базового room/avatar flow,
   - multi-client self/remote locomotion transitions,
   - near/far degrade behavior,
@@ -150,6 +152,7 @@
   - social-distance interactions рядом,
   - far-avatar degrade,
   - turn-in-place / strafe / backpedal / sharp stop.
+- Перед повторным включением Phase 3 на staging убрать extra synthetic body/head motion для local VR или оставить его полностью выключенным для tracked VR path.
 
 ## Тест-план
 
