@@ -1,5 +1,22 @@
 # План: Phase 2 — remote avatars и pose sync `v1`
 
+Статус: DONE (2026-04-04)
+
+## Итог
+
+Phase 2 доведена до рабочего staging-ready состояния. Реализованы reliable avatar state relay/replay, transient pose relay, participant-scoped pose buffers, adaptive playback delay, reconnect/late join recovery, same-browser tab identity separation, secure scene selector links и default-on avatar path для комнат. По финальному ручному прогону закрыты основные продуктовые регрессии Phase 2: взаимная видимость web/web и web/VR, сохранение `Enter VR` после scene switching, корректная загрузка avatar path в тяжёлых scene rooms, XR entry pitch reset, movement direction alignment по взгляду и видимость remote VR hands на web-наблюдателе.
+
+## Ключевые финальные изменения
+
+- `apps/room-state/src/index.ts`: relay для `avatar_reliable_state` и `avatar_pose_preview`, late-join replay reliable state, validation и server-side participant identity enforcement.
+- `apps/runtime-web/src/main.ts`: ранний boot `room-state` и local avatar до тяжёлой scene load, adaptive pose send rate, reconnect republish, XR entry pitch reset, movement alignment по camera forward, per-tab participant identity.
+- `apps/runtime-web/src/avatar/avatar-pose-buffer.ts`: pose ring buffer, stale/reorder drop, adaptive playback delay `100-140 ms`.
+- `apps/runtime-web/src/avatar/remote-avatar-runtime.ts`: buffered remote pose ingest, interpolation/smoothing, reconnect-safe participant models, fallback handling и VR hand visibility fallback на web.
+- `apps/runtime-web/src/avatar/avatar-snapshot-codec.ts`: world-space serialization для head/hands.
+- `apps/runtime-web/src/avatar/avatar-xr-input.ts`: корректный выбор активной пары XR axes.
+- `apps/api/src/index.ts` и `infra/docker/compose.staging.yml`: secure staging space links и default-on avatar/pose feature path.
+- `apps/api/src/storage.ts`, `packages/runtime-core/src/flags.ts`, `apps/runtime-web/src/avatar/avatar-runtime.ts`: avatars enabled by default.
+
 ## Цель
 
 Довести существующий avatar transport/stub path до рабочего `v1` для multiplayer: reliable avatar state, transient pose sync, буферы, интерполяция, reconnect/late join и безопасный fallback к coarse remote presence без дубликатов и сломанного состояния.
@@ -43,68 +60,68 @@
 
 ### 1. Зафиксировать transport contract Phase 2
 
-- [ ] Подтвердить один authoritative reliable contract для `avatarId`, `inputMode`, `seated`, `seatId`, `muted`, `audioActive`, `updatedAt` на базе `apps/runtime-web/src/avatar/avatar-types.ts`.
-- [ ] Подтвердить один transient contract для `CompactPoseFrame`: `seq`, `sentAtMs`, `root`, `head`, `leftHand`, `rightHand`, `locomotion`.
-- [ ] Явно отделить reliable path от transient path по частоте и семантике, чтобы reconnect/late join не зависели от pose stream.
-- [ ] Зафиксировать правило совместимости: при отключённом realtime pose runtime продолжает показывать coarse remote presence без краша.
+- [x] Подтвердить один authoritative reliable contract для `avatarId`, `inputMode`, `seated`, `seatId`, `muted`, `audioActive`, `updatedAt` на базе `apps/runtime-web/src/avatar/avatar-types.ts`.
+- [x] Подтвердить один transient contract для `CompactPoseFrame`: `seq`, `sentAtMs`, `root`, `head`, `leftHand`, `rightHand`, `locomotion`.
+- [x] Явно отделить reliable path от transient path по частоте и семантике, чтобы reconnect/late join не зависели от pose stream.
+- [x] Зафиксировать правило совместимости: при отключённом realtime pose runtime продолжает показывать coarse remote presence без краша.
 
 ### 2. Доработать relay в `room-state`
 
-- [ ] Расширить `apps/room-state/src/index.ts`, чтобы сервис принимал и ретранслировал `avatar_reliable_state` всем участникам комнаты.
-- [ ] Расширить `apps/room-state/src/index.ts`, чтобы сервис принимал и ретранслировал `avatar_pose_preview` всем участникам комнаты.
-- [ ] Не смешивать avatar relay с сериализацией `room_state`; snapshot комнаты остаётся отдельным сообщением.
-- [ ] Гарантировать, что participant identity для relay берётся с серверной стороны, а не доверяется клиентскому payload целиком.
-- [ ] Добавить защиту от невалидных payload и логирование дропа без падения room-state процесса.
-- [ ] Зафиксировать и реализовать стратегию late join для reliable state: хранение последнего reliable avatar state на сервере или обязательный republish при connect/reconnect.
+- [x] Расширить `apps/room-state/src/index.ts`, чтобы сервис принимал и ретранслировал `avatar_reliable_state` всем участникам комнаты.
+- [x] Расширить `apps/room-state/src/index.ts`, чтобы сервис принимал и ретранслировал `avatar_pose_preview` всем участникам комнаты.
+- [x] Не смешивать avatar relay с сериализацией `room_state`; snapshot комнаты остаётся отдельным сообщением.
+- [x] Гарантировать, что participant identity для relay берётся с серверной стороны, а не доверяется клиентскому payload целиком.
+- [x] Добавить защиту от невалидных payload и логирование дропа без падения room-state процесса.
+- [x] Зафиксировать и реализовать стратегию late join для reliable state: хранение последнего reliable avatar state на сервере или обязательный republish при connect/reconnect.
 
 ### 3. Собрать runtime publish path
 
-- [ ] Подключить publish reliable state из локального avatar snapshot в обычном room flow, а не только в debug preview.
-- [ ] Подключить периодическую отправку pose frame с baseline-частотой: VR `30 Hz`, desktop/mobile `10 Hz`, с документированным throttling/degrade path; для VR degrade floor не опускать ниже `20 Hz`.
-- [ ] Не отправлять лишние pose updates, если локальный avatar выключен, room-state не подключён или avatar realtime path отключён feature flag.
-- [ ] Зафиксировать измеряемые debug counters: send rate, last seq, last sent timestamp, dropped-send reason.
+- [x] Подключить publish reliable state из локального avatar snapshot в обычном room flow, а не только в debug preview.
+- [x] Подключить периодическую отправку pose frame с baseline-частотой: VR `30 Hz`, desktop/mobile `10 Hz`, с документированным throttling/degrade path; для VR degrade floor не опускать ниже `20 Hz`.
+- [x] Не отправлять лишние pose updates, если локальный avatar выключен, room-state не подключён или avatar realtime path отключён feature flag.
+- [x] Зафиксировать измеряемые debug counters: send rate, last seq, last sent timestamp, dropped-send reason.
 
 ### 4. Собрать runtime ingest path для remote участников
 
-- [ ] Подключить входящие `avatar_reliable_state` и `avatar_pose_preview` из `apps/runtime-web/src/room-state-client.ts` к `remote-avatar-runtime`.
-- [ ] Ввести participant-scoped remote avatar model с раздельным хранением presence, reliable state и transient pose stream.
-- [ ] На late join корректно поднимать remote participant даже если reliable state пришёл раньше pose frame или наоборот.
-- [ ] При disconnect/reconnect очищать старое remote avatar state по `participantId`, чтобы не возникали duplicate remote avatars.
+- [x] Подключить входящие `avatar_reliable_state` и `avatar_pose_preview` из `apps/runtime-web/src/room-state-client.ts` к `remote-avatar-runtime`.
+- [x] Ввести participant-scoped remote avatar model с раздельным хранением presence, reliable state и transient pose stream.
+- [x] На late join корректно поднимать remote participant даже если reliable state пришёл раньше pose frame или наоборот.
+- [x] При disconnect/reconnect очищать старое remote avatar state по `participantId`, чтобы не возникали duplicate remote avatars.
 
 ### 5. Добавить ring buffer и ordering rules
 
-- [ ] Добавить отдельный модуль буфера pose frames per participant, например `apps/runtime-web/src/avatar/avatar-pose-buffer.ts`.
-- [ ] Дропать устаревшие и out-of-order frames по `seq` без поломки последнего валидного состояния.
-- [ ] Ограничить размер ring buffer и TTL старых frame entries, чтобы remote sync не накапливал лишнюю память.
-- [ ] Зафиксировать отдельные debug метрики: last seq, dropped stale count, dropped reorder count, buffer depth.
+- [x] Добавить отдельный модуль буфера pose frames per participant, например `apps/runtime-web/src/avatar/avatar-pose-buffer.ts`.
+- [x] Дропать устаревшие и out-of-order frames по `seq` без поломки последнего валидного состояния.
+- [x] Ограничить размер ring buffer и TTL старых frame entries, чтобы remote sync не накапливал лишнюю память.
+- [x] Зафиксировать отдельные debug метрики: last seq, dropped stale count, dropped reorder count, buffer depth.
 
 ### 6. Реализовать interpolation/extrapolation для remote pose
 
-- [ ] Перевести `remote-avatar-runtime` с ad-hoc применения последнего frame на чтение из pose buffer.
-- [ ] Ввести interpolation window для head/hands/root и короткую bounded extrapolation только как fallback на коротких разрывах.
-- [ ] Ограничить extrapolation по времени и скорости, чтобы при сетевых провалах не появлялись телепорты и сломы позы.
-- [ ] Зафиксировать приоритет fallback-источников для remote root/head: pose buffer -> coarse presence snapshot -> stub default.
-- [ ] Зафиксировать deterministic fallback: если buffer пуст или слишком старый, remote avatar возвращается к coarse presence/stub state.
+- [x] Перевести `remote-avatar-runtime` с ad-hoc применения последнего frame на чтение из pose buffer.
+- [x] Ввести interpolation window для head/hands/root и короткую bounded extrapolation только как fallback на коротких разрывах.
+- [x] Ограничить extrapolation по времени и скорости, чтобы при сетевых провалах не появлялись телепорты и сломы позы.
+- [x] Зафиксировать приоритет fallback-источников для remote root/head: pose buffer -> coarse presence snapshot -> stub default.
+- [x] Зафиксировать deterministic fallback: если buffer пуст или слишком старый, remote avatar возвращается к coarse presence/stub state.
 
 ### 7. Довести remote renderer до Phase 2 scope
 
-- [ ] Оставить renderer на существующем remote stub path, но синхронизировать `avatarId`, input mode, hand visibility и locomotion debug state.
-- [ ] Убедиться, что body/head/hands обновляются из remote pose path плавно, а не через stop-motion применение последнего пакета.
-- [ ] Сохранить безопасный capsule/stub fallback, если reliable state или pose stream сломаны.
-- [ ] Не начинать в этой фазе полноценный remote mesh/avatar-instance render pass.
+- [x] Оставить renderer на существующем remote stub path, но синхронизировать `avatarId`, input mode, hand visibility и locomotion debug state.
+- [x] Убедиться, что body/head/hands обновляются из remote pose path плавно, а не через stop-motion применение последнего пакета.
+- [x] Сохранить безопасный capsule/stub fallback, если reliable state или pose stream сломаны.
+- [x] Не начинать в этой фазе полноценный remote mesh/avatar-instance render pass.
 
 ### 8. Закрыть reconnect, late join и cleanup
 
-- [ ] Поздно вошедший клиент получает корректный `avatarId` и поднимает remote stub без ожидания полного переподключения комнаты.
-- [ ] После reconnect того же участника старый remote entity удаляется и заменяется новым без дубля в сцене.
-- [ ] При временном отсутствии pose stream reliable state остаётся валидным, а renderer деградирует предсказуемо.
-- [ ] При полном отключении avatar realtime feature flag runtime возвращается к coarse remote presence path.
+- [x] Поздно вошедший клиент получает корректный `avatarId` и поднимает remote stub без ожидания полного переподключения комнаты.
+- [x] После reconnect того же участника старый remote entity удаляется и заменяется новым без дубля в сцене.
+- [x] При временном отсутствии pose stream reliable state остаётся валидным, а renderer деградирует предсказуемо.
+- [x] При полном отключении avatar realtime feature flag runtime возвращается к coarse remote presence path.
 
 ### 9. Документация и выпуск фазы
 
-- [ ] Обновить документацию по avatar transport/contracts и явно описать границу между reliable state, pose stream и coarse presence.
-- [ ] Зафиксировать measured packet size, send rate и jitter/debug counters как артефакты выхода фазы.
-- [ ] Подготовить staging smoke room/feature-flag path для проверки нескольких клиентов.
+- [x] Обновить документацию по avatar transport/contracts и явно описать границу между reliable state, pose stream и coarse presence.
+- [x] Зафиксировать measured packet size, send rate и jitter/debug counters как артефакты выхода фазы.
+- [x] Подготовить staging smoke room/feature-flag path для проверки нескольких клиентов.
 
 ## Затронутые файлы/модули (если известно)
 
@@ -161,6 +178,13 @@
 - [ ] Приходит pose stream без уже загруженного visual state: runtime не падает и поднимает participant после следующего валидного состояния.
 - [ ] Room-state relay получает невалидный avatar payload: сообщение дропается, процесс не падает.
 - [ ] Realtime avatar feature flag выключается во время session: runtime очищает pose pipeline и возвращается к coarse remote presence.
+
+## Финальная верификация
+
+- Локально прогнаны `pnpm test` и `pnpm test:e2e` на финальном состоянии Phase 2.
+- Public staging прогнан через `BASE_URL="https://89.169.161.91.sslip.io" PLAYWRIGHT_NO_WEB_SERVER=1 pnpm test:e2e:staging`; финальный расширенный suite зелёный.
+- Staging gate последнего финального прохода: `23978472882`.
+- Автоматические regressions теперь покрывают: same-browser tabs identity, `Hall` web-web visibility, `Hall` hand visibility, `demo-room` two-client sync, scene selector transitions, reconnect recovery, adaptive transport counters и secure staging room links.
 
 ## Риски и откаты (roll-back)
 
