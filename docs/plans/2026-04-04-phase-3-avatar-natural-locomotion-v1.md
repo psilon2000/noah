@@ -51,6 +51,8 @@
 - Staging deploy run: `23986540547`.
 - По результатам ручной проверки на staging новый body-naturalness path не прошёл приёмку: на web улучшение оказалось почти незаметным, а в VR корпус/голова дёргались.
 - В ответ staging contract переведён в безопасный rollback: `FEATURE_AVATAR_LEG_IK=false` на compose staging, при этом кодовый path сохранён за feature flag для доработки.
+- Добавлен `record/replay` deterministic locomotion trace harness для self/remote contract и unit-покрытие на replay mismatch detection.
+- Добавлены staging e2e для двух режимов: безопасный legacy path по умолчанию и принудительное включение `Phase 3` через query override `?avatarik=1`.
 
 ## Задачи (чек-лист)
 
@@ -103,12 +105,12 @@
 - [x] Использовать существующий флаг `avatarLegIkEnabled` как главный rollout switch для Phase 3, не вводя лишний новый флаг без необходимости.
 - [x] Зафиксировать rollout order: сначала classifier/transition layer, потом self apply, потом remote apply, потом `near-avatar` refinement под `avatarLegIkEnabled`.
 - [x] Расширить avatar diagnostics/debug state метриками locomotion state, transition source, gait phase, anti-skating correction и near/far quality mode.
-- [ ] Подготовить debug-friendly traces для сравнения `self` и `remote` поведения на одной и той же траектории.
+- [x] Подготовить debug-friendly traces для сравнения `self` и `remote` поведения на одной и той же траектории.
 - [x] Явно описать, какие признаки считаются сигналом для rollback на staging.
 
 ### 8. Документация и завершение фазы
 
-- [ ] Обновить `docs/2026-04-01-noah-avatar-system-tz-roadmap.md` и связанный план, чтобы границы Phase 3 были синхронизированы с фактической реализацией.
+- [x] Обновить `docs/2026-04-01-noah-avatar-system-tz-roadmap.md` и связанный план, чтобы границы Phase 3 были синхронизированы с фактической реализацией.
 - [x] Зафиксировать артефакты выхода фазы: `natural locomotion v1`, regression traces, staging evidence и список ограничений для Phase 4+.
 - [x] Отдельно задокументировать, что Phase 3 не требует нового avatar asset pack, но оставляет точку расширения для richer rigs в будущем.
 
@@ -134,18 +136,12 @@
 ## CI / verification gates
 
 - [x] Blocking local gate: `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm test`.
-- [ ] Blocking avatar regression gate: `record/replay` traces и deterministic bot paths для locomotion/body contract.
+- [x] Blocking avatar regression gate: `record/replay` traces и deterministic bot paths для locomotion/body contract.
 - [x] Blocking published gate: `pnpm test:e2e:staging` после выката на staging.
 - [ ] Manual evidence остаётся обязательной, но не заменяет automated gates для self/remote locomotion regressions.
 
 ## Осталось до полного закрытия фазы
 
-- Добавить обещанный `record/replay` / deterministic trace harness для self/remote locomotion contract.
-- После rollback добавить расширенное автоматическое e2e тестирование старого и нового функционала на staging:
-  - регрессии базового room/avatar flow,
-  - multi-client self/remote locomotion transitions,
-  - near/far degrade behavior,
-  - heavy rooms (`Hall`, `BlueOffice`, `ArtGallery`) без regressions по `sceneDebug` и avatar boot order.
 - После автоматических staging checks провести обзорное ручное тестирование как финальный acceptance pass:
   - desktop/desktop,
   - desktop + Quest/WebXR,
