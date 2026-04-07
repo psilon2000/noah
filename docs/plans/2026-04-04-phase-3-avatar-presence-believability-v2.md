@@ -83,6 +83,8 @@
 - [ ] Desktop <-> VR: remote visibility и общее ощущение качества.
 - [ ] Подтвердить, что текущий baseline не хуже предыдущей стабильной версии.
 
+Статус: objective acceptance покрывается staging automation через desktop flows, heavy-room checks и debug-only mock VR regression scenarios; вручную остаётся только субъективная оценка качества и ответ на вопрос "не стало ли хуже".
+
 ## Затронутые файлы/модули
 
 - `docs/2026-04-01-noah-avatar-system-tz-roadmap.md`
