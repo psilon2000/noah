@@ -56,6 +56,8 @@
 - [ ] Явно отделить product baseline от experimental locomotion branch.
 - [ ] Зафиксировать, что smooth sliding без ног - допустимое поведение, если оно выглядит лучше и стабильнее.
 
+Статус: выполнено в roadmap и текущем runtime contract; product baseline теперь рассматривается как smooth no-leg presence, а experimental path вынесен под override.
+
 ### 2. Закрыть обязательные product-quality кейсы
 
 - [ ] Гарантировать скрытие локальной головы в VR.
@@ -63,12 +65,16 @@
 - [ ] Гарантировать отсутствие body jitter / torso twist / strafe artifacts.
 - [ ] Гарантировать, что remote/self transitions и visibility не ломают existing avatar sync path.
 
+Статус: закрыто кодом и regression tests для self VR visibility, remote VR hand visibility и calmer no-leg upper-body baseline.
+
 ### 3. Усилить automated verification
 
 - [ ] Держать staging e2e на legacy-safe path по умолчанию.
 - [ ] Держать отдельные staging checks на experimental path под query override, чтобы исследования не ломали production baseline.
 - [ ] Держать regression tests на локальную VR голову, remote VR руки и strafe stability.
 - [ ] Держать heavy-room staging checks для `Hall` и других чувствительных комнат.
+
+Статус: покрыто local/staging e2e и unit tests; baseline идёт по умолчанию, experimental `avatarik=1` проверяется отдельно.
 
 ### 4. Провести обзорный acceptance pass
 
