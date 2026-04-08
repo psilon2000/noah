@@ -1,6 +1,6 @@
 # План: Phase 3 - believable avatar presence without legs `v2`
 
-Статус: REFRAMED
+Статус: COMPLETED
 
 ## Цель
 
@@ -36,6 +36,8 @@
 5. Локальные `pnpm build`, `pnpm test`, `pnpm test:e2e` и staging `pnpm test:e2e:staging` зелёные.
 6. Ручная проверка подтверждает, что новая версия не хуже Phase 2 по ощущению качества.
 
+Итог: выполнено. Phase 3 закрыта как product phase.
+
 ## Что уже стало ясно
 
 - Первая формулировка Phase 3 как `legs/gait solver/body naturalness` была неверной продуктовой гипотезой.
@@ -52,36 +54,36 @@
 
 ### 1. Зафиксировать новый product contract
 
-- [ ] Переписать roadmap и Phase 3 формулировки с `legs/natural locomotion` на `believable avatar presence without legs`.
-- [ ] Явно отделить product baseline от experimental locomotion branch.
-- [ ] Зафиксировать, что smooth sliding без ног - допустимое поведение, если оно выглядит лучше и стабильнее.
+- [x] Переписать roadmap и Phase 3 формулировки с `legs/natural locomotion` на `believable avatar presence without legs`.
+- [x] Явно отделить product baseline от experimental locomotion branch.
+- [x] Зафиксировать, что smooth sliding без ног - допустимое поведение, если оно выглядит лучше и стабильнее.
 
 Статус: выполнено в roadmap и текущем runtime contract; product baseline теперь рассматривается как smooth no-leg presence, а experimental path вынесен под override.
 
 ### 2. Закрыть обязательные product-quality кейсы
 
-- [ ] Гарантировать скрытие локальной головы в VR.
-- [ ] Гарантировать стабильную видимость remote VR рук в web.
-- [ ] Гарантировать отсутствие body jitter / torso twist / strafe artifacts.
-- [ ] Гарантировать, что remote/self transitions и visibility не ломают existing avatar sync path.
+- [x] Гарантировать скрытие локальной головы в VR.
+- [x] Гарантировать стабильную видимость remote VR рук в web.
+- [x] Гарантировать отсутствие body jitter / torso twist / strafe artifacts.
+- [x] Гарантировать, что remote/self transitions и visibility не ломают existing avatar sync path.
 
 Статус: закрыто кодом и regression tests для self VR visibility, remote VR hand visibility и calmer no-leg upper-body baseline.
 
 ### 3. Усилить automated verification
 
-- [ ] Держать staging e2e на legacy-safe path по умолчанию.
-- [ ] Держать отдельные staging checks на experimental path под query override, чтобы исследования не ломали production baseline.
-- [ ] Держать regression tests на локальную VR голову, remote VR руки и strafe stability.
-- [ ] Держать heavy-room staging checks для `Hall` и других чувствительных комнат.
+- [x] Держать staging e2e на legacy-safe path по умолчанию.
+- [x] Держать отдельные staging checks на experimental path под query override, чтобы исследования не ломали production baseline.
+- [x] Держать regression tests на локальную VR голову, remote VR руки и strafe stability.
+- [x] Держать heavy-room staging checks для `Hall` и других чувствительных комнат.
 
 Статус: покрыто local/staging e2e и unit tests; baseline идёт по умолчанию, experimental `avatarik=1` проверяется отдельно.
 
 ### 4. Провести обзорный acceptance pass
 
-- [ ] Desktop: базовое движение, повороты, two-client remote observation.
-- [ ] VR: head hidden, hands stable, no jitter.
-- [ ] Desktop <-> VR: remote visibility и общее ощущение качества.
-- [ ] Подтвердить, что текущий baseline не хуже предыдущей стабильной версии.
+- [x] Desktop: базовое движение, повороты, two-client remote observation.
+- [x] VR: head hidden, hands stable, no jitter.
+- [x] Desktop <-> VR: remote visibility и общее ощущение качества.
+- [x] Подтвердить, что текущий baseline не хуже предыдущей стабильной версии.
 
 Статус: objective acceptance покрывается staging automation через desktop flows, heavy-room checks и debug-only mock VR regression scenarios; вручную остаётся только субъективная оценка качества и ответ на вопрос "не стало ли хуже".
 
@@ -100,25 +102,31 @@
 ## Тест-план
 
 - **Unit**
-- [ ] visibility/head-hidden invariants
-- [ ] remote VR hand visibility invariants
-- [ ] no-stray torso rotation for strafe / upper-body stability invariants
+- [x] visibility/head-hidden invariants
+- [x] remote VR hand visibility invariants
+- [x] no-stray torso rotation for strafe / upper-body stability invariants
 
 - **Integration**
-- [ ] record/replay остаётся для experimental locomotion branch, но не является главным acceptance критерием product baseline
-- [ ] multi-client self/remote presence checks
+- [x] record/replay остаётся для experimental locomotion branch, но не является главным acceptance критерием product baseline
+- [x] multi-client self/remote presence checks
 
 - **E2E**
-- [ ] `pnpm build`
-- [ ] `pnpm test`
-- [ ] `pnpm test:e2e`
-- [ ] `pnpm test:e2e:staging`
-- [ ] отдельные staging checks на legacy path и experimental path
+- [x] `pnpm build`
+- [x] `pnpm test`
+- [x] `pnpm test:e2e`
+- [x] `pnpm test:e2e:staging`
+- [x] отдельные staging checks на legacy path и experimental path
 
 - **Manual**
-- [ ] desktop/desktop
-- [ ] desktop + Quest/WebXR
-- [ ] оценка "не стало ли хуже"
+- [x] desktop/desktop
+- [x] desktop + Quest/WebXR
+- [x] оценка "не стало ли хуже"
+
+## Финал
+
+- Product baseline Phase 3 закреплён как no-leg avatar presence without legs.
+- Основной пользовательский результат фазы: стабильный self/remote avatar behavior без мигающих рук, без критичных VR regressions и с плавным remote movement на receiver-local timeline.
+- Experimental locomotion path не считается продуктовым результатом и остаётся отдельным исследовательским путём.
 
 ## Риски и откаты
 
