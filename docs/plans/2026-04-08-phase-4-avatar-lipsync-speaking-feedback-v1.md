@@ -1,6 +1,6 @@
 # План: Phase 4 - avatar lipsync, speaking feedback и expressive polish `v1`
 
-Статус: PLANNED
+Статус: COMPLETED
 
 ## Цель
 
@@ -38,63 +38,67 @@
 4. Late join, reconnect и `TrackUnsubscribed` не оставляют stuck speaking state и не создают утечек audio/analyser nodes.
 5. Локальные `pnpm build`, `pnpm test`, `pnpm test:e2e` и staging `pnpm test:e2e:staging` зелёные.
 
+## Итог
+
+Фаза завершена как `v1` main-path delivery. Реализованы self/remote lipsync без нового facial network payload, audible remote playback, desktop/VR self-visibility fixes, VR root/body alignment, room HUD audio controls (`Microphone`, `Speaker`, `Mic level`, `Speaker level`) и staging-facing e2e/smoke verification. Сложный face system, viseme/phoneme mapping и расширенный expressive polish сознательно оставлены вне scope этой фазы.
+
 ## Задачи (чек-лист)
 
 ### 1. Зафиксировать lipsync contract фазы
 
-- [ ] Подтвердить минимальный runtime contract `audio level -> smoothed mouth amount -> avatar morph/visual state` без сетевого facial payload.
-- [ ] Подтвердить, какие morph targets считаются обязательными для lipsync `v1` и что при их отсутствии runtime деградирует в `speaking indicator only`.
-- [ ] Явно отделить обязательный результат фазы (`mouth reaction + speaking indicator`) от необязательного polish (`blink/subtle idle facial motion`).
-- [ ] Явно зафиксировать, что `AvatarReliableState` и `CompactPoseFrame` в этой фазе не расширяются.
+- [x] Подтвердить минимальный runtime contract `audio level -> smoothed mouth amount -> avatar morph/visual state` без сетевого facial payload.
+- [x] Подтвердить, какие morph targets считаются обязательными для lipsync `v1` и что при их отсутствии runtime деградирует в `speaking indicator only`.
+- [x] Явно отделить обязательный результат фазы (`mouth reaction + speaking indicator`) от необязательного polish (`blink/subtle idle facial motion`).
+- [x] Явно зафиксировать, что `AvatarReliableState` и `CompactPoseFrame` в этой фазе не расширяются.
 
 ### 2. Собрать общий lipsync runtime module
 
-- [ ] Добавить модуль `apps/runtime-web/src/avatar/avatar-lipsync.ts` с чистыми функциями/состоянием для envelope smoothing, silence gate, attack/release и amplitude-to-mouth mapping.
-- [ ] Сделать модуль пригодным и для self, и для remote path, чтобы не дублировать логику в `main.ts`.
-- [ ] Зафиксировать bounded cost: обновление lipsync должно быть дёшево по CPU и безопасно при отсутствии аудио-кадров.
+- [x] Добавить модуль `apps/runtime-web/src/avatar/avatar-lipsync.ts` с чистыми функциями/состоянием для envelope smoothing, silence gate, attack/release и amplitude-to-mouth mapping.
+- [x] Сделать модуль пригодным и для self, и для remote path, чтобы не дублировать логику в `main.ts`.
+- [x] Зафиксировать bounded cost: обновление lipsync должно быть дёшево по CPU и безопасно при отсутствии аудио-кадров.
 
 ### 3. Подключить self-avatar lipsync
 
-- [ ] Найти локальный mic audio path после `joinAudio()` и подключить к нему `AnalyserNode` или эквивалентный analyser path без ломания текущего voice flow.
-- [ ] Брать self lipsync сигнал из уже существующего local voice/live audio path, а не из нового параллельного media source.
-- [ ] Преобразовать локальный audio level в mouth amount через общий lipsync driver.
-- [ ] При `mute`, отсутствии микрофона или остановке track рот self-avatar должен возвращаться в neutral без залипания.
-- [ ] Не делать self lipsync источником сетевых данных; remote участники должны продолжать жить только от своего receiving-side audio path.
+- [x] Найти локальный mic audio path после `joinAudio()` и подключить к нему `AnalyserNode` или эквивалентный analyser path без ломания текущего voice flow.
+- [x] Брать self lipsync сигнал из уже существующего local voice/live audio path, а не из нового параллельного media source.
+- [x] Преобразовать локальный audio level в mouth amount через общий lipsync driver.
+- [x] При `mute`, отсутствии микрофона или остановке track рот self-avatar должен возвращаться в neutral без залипания.
+- [x] Не делать self lipsync источником сетевых данных; remote участники должны продолжать жить только от своего receiving-side audio path.
 
 ### 4. Подключить remote-avatar lipsync
 
-- [ ] Расширить путь `connectRemoteAudioElement(...)` / `disconnectRemoteAudioElement(...)`, чтобы на каждого remote participant создавался и корректно очищался analyser path вместе с текущим spatial audio graph.
-- [ ] Привязать remote mouth amount к `participantId` и существующему lifecycle remote avatar model.
-- [ ] Гарантировать, что late join и reconnect повторно поднимают analyser без дублей и утечек Web Audio nodes.
-- [ ] При отсутствии remote audio element или при `TrackUnsubscribed` рот remote avatar возвращается в neutral.
+- [x] Расширить путь `connectRemoteAudioElement(...)` / `disconnectRemoteAudioElement(...)`, чтобы на каждого remote participant создавался и корректно очищался analyser path вместе с текущим spatial audio graph.
+- [x] Привязать remote mouth amount к `participantId` и существующему lifecycle remote avatar model.
+- [x] Гарантировать, что late join и reconnect повторно поднимают analyser без дублей и утечек Web Audio nodes.
+- [x] При отсутствии remote audio element или при `TrackUnsubscribed` рот remote avatar возвращается в neutral.
 
 ### 5. Довести avatar visual application до Phase 4 scope
 
-- [ ] Расширить `apps/runtime-web/src/avatar/avatar-instance.ts` или соседний visual helper, чтобы инстанс умел принимать mouth/speaking state.
-- [ ] Сделать безопасный fallback для procedural/debug avatars и для пресетов без нужных morph targets; минимальный fallback контракт - `speaking indicator only`.
-- [ ] Добавить speaking indicator как отдельное дешёвое визуальное состояние, чтобы фаза оставалась полезной даже на упрощённых avatar visuals.
+- [x] Расширить `apps/runtime-web/src/avatar/avatar-instance.ts` или соседний visual helper, чтобы инстанс умел принимать mouth/speaking state.
+- [x] Сделать безопасный fallback для procedural/debug avatars и для пресетов без нужных morph targets; минимальный fallback контракт - `speaking indicator only`.
+- [x] Добавить speaking indicator как отдельное дешёвое визуальное состояние, чтобы фаза оставалась полезной даже на упрощённых avatar visuals.
 - [ ] Добавить blink/subtle idle facial motion только если это не требует нового asset contract и не ломает основной scope.
 
 ### 6. Интегрировать lipsync в local/remote avatar orchestration
 
-- [ ] Подключить self lipsync update в local avatar update path без разрастания `apps/runtime-web/src/main.ts` в новый монолит.
-- [ ] Подключить remote lipsync update в `remote-avatar-runtime` или близкий orchestration слой по `participantId`.
-- [ ] Обновлять debug/diagnostics так, чтобы было видно наличие analyser path, `mouthAmount`, `speakingActive`, `lipsyncSourceState` и причины fallback.
+- [x] Подключить self lipsync update в local avatar update path без разрастания `apps/runtime-web/src/main.ts` в новый монолит.
+- [x] Подключить remote lipsync update в `remote-avatar-runtime` или близкий orchestration слой по `participantId`.
+- [x] Обновлять debug/diagnostics так, чтобы было видно наличие analyser path, `mouthAmount`, `speakingActive`, `lipsyncSourceState` и причины fallback.
 
 ### 7. Закрыть крайние случаи и деградацию
 
-- [ ] Проверить `mute/unmute` для self без застрявшего mouth-open state.
-- [ ] Проверить отсутствие audio track: lipsync path не падает и не создаёт noisy false positives.
-- [ ] Проверить late join: новый клиент видит remote speaking feedback после подключения audio.
-- [ ] Проверить reconnect: старые analyser/resources очищаются, новый path поднимается корректно.
-- [ ] Проверить двух говорящих одновременно: состояние не путается между `participantId`, и cost не ломает room flow.
+- [x] Проверить `mute/unmute` для self без застрявшего mouth-open state.
+- [x] Проверить отсутствие audio track: lipsync path не падает и не создаёт noisy false positives.
+- [x] Проверить late join: новый клиент видит remote speaking feedback после подключения audio.
+- [x] Проверить reconnect: старые analyser/resources очищаются, новый path поднимается корректно.
+- [x] Проверить двух говорящих одновременно: состояние не путается между `participantId`, и cost не ломает room flow.
 
 ### 8. Довести фазу до staging-ready состояния
 
-- [ ] Обновить roadmap/phase docs по фактическому Phase 4 contract и границам `v1`.
-- [ ] Прогнать локально обязательный набор: `pnpm build`, `pnpm test`, `pnpm test:e2e`.
-- [ ] После внедрения выкатить изменения на staging обычным git-based flow и прогнать `pnpm test:e2e:staging`.
-- [ ] На staging подтвердить, что lipsync path не ломает room load, audio join, remote sync и WebXR entry.
+- [x] Обновить roadmap/phase docs по фактическому Phase 4 contract и границам `v1`.
+- [x] Прогнать локально обязательный набор: `pnpm build`, `pnpm test`, `pnpm test:e2e`.
+- [x] После внедрения выкатить изменения на staging обычным git-based flow и прогнать `pnpm test:e2e:staging`.
+- [x] На staging подтвердить, что lipsync path не ломает room load, audio join, remote sync и WebXR entry.
 
 ## Затронутые файлы/модули (если известно)
 
@@ -118,44 +122,44 @@
 
 ### Unit
 
-- [ ] `envelope smoothing`: резкий вход/выход сигнала даёт ожидаемый attack/release без дрожания.
-- [ ] `silence gate`: шум ниже порога не открывает рот.
-- [ ] `amplitude -> mouth amount`: маппинг ограничен в `0..1`, без overshoot.
-- [ ] `mute/no-track fallback`: driver возвращает neutral state.
+- [x] `envelope smoothing`: резкий вход/выход сигнала даёт ожидаемый attack/release без дрожания.
+- [x] `silence gate`: шум ниже порога не открывает рот.
+- [x] `amplitude -> mouth amount`: маппинг ограничен в `0..1`, без overshoot.
+- [x] `mute/no-track fallback`: driver возвращает neutral state.
 - [ ] `blink/idle` logic, если она будет включена в scope `v1`.
 
 ### Integration
 
 - [ ] Synthetic local audio source двигает рот self-avatar без реального микрофона в тестовом harness.
 - [ ] Synthetic remote audio element двигает рот только у нужного `participantId`.
-- [ ] `TrackSubscribed`/`TrackUnsubscribed` корректно создают и очищают analyser path.
-- [ ] Late join после уже активного remote speaker поднимает speaking feedback без ручного reset.
-- [ ] Reconnect не оставляет duplicate analyser nodes и duplicate speaking state.
-- [ ] Два одновременных speaker path не смешивают mouth state между участниками.
+- [x] `TrackSubscribed`/`TrackUnsubscribed` корректно создают и очищают analyser path.
+- [x] Late join после уже активного remote speaker поднимает speaking feedback без ручного reset.
+- [x] Reconnect не оставляет duplicate analyser nodes и duplicate speaking state.
+- [x] Два одновременных speaker path не смешивают mouth state между участниками.
 
 ### E2E
 
-- [ ] Расширить локальный e2e-сценарий так, чтобы он покрывал audio join и минимум один проверяемый speaking/lipsync signal path.
-- [ ] Зафиксировать стабильный debug signal для e2e: `mouthAmount`, `speakingActive`, `lipsyncSourceState` по self и remote participant.
-- [ ] Прогнать локально `pnpm build`.
-- [ ] Прогнать локально `pnpm test`.
-- [ ] Прогнать локально `pnpm test:e2e`.
-- [ ] После выкладки прогнать `pnpm test:e2e:staging`.
+- [x] Расширить локальный e2e-сценарий так, чтобы он покрывал audio join и минимум один проверяемый speaking/lipsync signal path.
+- [x] Зафиксировать стабильный debug signal для e2e: `mouthAmount`, `speakingActive`, `lipsyncSourceState` по self и remote participant.
+- [x] Прогнать локально `pnpm build`.
+- [x] Прогнать локально `pnpm test`.
+- [x] Прогнать локально `pnpm test:e2e`.
+- [x] После выкладки прогнать `pnpm test:e2e:staging`.
 
 ### Manual
 
-- [ ] Desktop self: говорить в микрофон, проверить mouth reaction и neutral return после `mute`.
-- [ ] Desktop <-> desktop: два клиента говорят по очереди и одновременно; remote mouth коррелирует со слышимым звуком.
-- [ ] Desktop <-> WebXR: remote avatar speaking feedback и lipsync не ломают XR flow и не создают заметный jitter.
-- [ ] Late join и reconnect в комнате с уже активным аудио.
+- [x] Desktop self: говорить в микрофон, проверить mouth reaction и neutral return после `mute`.
+- [x] Desktop <-> desktop: два клиента говорят по очереди и одновременно; remote mouth коррелирует со слышимым звуком.
+- [x] Desktop <-> WebXR: remote avatar speaking feedback и lipsync не ломают XR flow и не создают заметный jitter.
+- [x] Late join и reconnect в комнате с уже активным аудио.
 
 ### Негативные кейсы
 
-- [ ] Микрофон не выдан или выключен: self lipsync не падает и остаётся в neutral.
-- [ ] Remote audio track отсутствует: avatar остаётся без рта/индикатора, но остальная avatar pipeline жива.
-- [ ] Remote track быстро subscribe/unsubscribe: не возникает утечек analyser nodes и stuck speaking state.
-- [ ] Одновременная речь двух участников: состояние не перепутывается между remote avatars.
-- [ ] High room load / heavy scene: lipsync path не ломает room load и не даёт заметной деградации основного avatar sync.
+- [x] Микрофон не выдан или выключен: self lipsync не падает и остаётся в neutral.
+- [x] Remote audio track отсутствует: avatar остаётся без рта/индикатора, но остальная avatar pipeline жива.
+- [x] Remote track быстро subscribe/unsubscribe: не возникает утечек analyser nodes и stuck speaking state.
+- [x] Одновременная речь двух участников: состояние не перепутывается между remote avatars.
+- [x] High room load / heavy scene: lipsync path не ломает room load и не даёт заметной деградации основного avatar sync.
 
 ## Риски и откаты (roll-back)
 
