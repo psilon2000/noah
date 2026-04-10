@@ -47,88 +47,96 @@
 7. Сцены без anchors продолжают работать без seating path и без runtime errors.
 8. Локальные `pnpm build`, `pnpm test`, `pnpm test:e2e` и staging `pnpm test:e2e:staging` зелёные.
 
+## Статус
+
+- Статус фазы: `partially complete`
+- Реализован и выкачен на staging основной `v1` path: interaction ray, floor teleport, anchor seating, seat switch, server-authoritative occupancy.
+- Локальные `pnpm build`, `pnpm test`, `pnpm test:e2e` и staging `pnpm test:e2e:staging` уже проходили на выкаченном SHA.
+- Локальный runtime e2e на seating/teleport сейчас опирается на debug test actions для стабильности; browser-level conflict path остаётся покрыт в `apps/room-state` tests.
+- Основной незакрытый хвост: добить более полное automated/manual покрытие на reconnect/late-join/XR и распространить anchors на нужные реальные сцены.
+
 ## Задачи (чек-лист)
 
 ### 1. Зафиксировать interaction и scene contracts Phase 5
 
-- [ ] Описать единый runtime contract для interaction ray: activation, target resolution, highlight, confirm action и local-only visibility.
-- [ ] Зафиксировать confirm contract для луча: отдельное confirm action для web и XR, не завязанное на сам факт показа луча.
-- [ ] Добавить в scene bundle schema anchors contract с явным разделением минимум на `teleport floor` и `seat anchors`.
-- [ ] Зафиксировать обязательные поля `seat anchor`: `id`, `position`, `yaw`, `seatHeight`, при необходимости `prompt`/`label`.
-- [ ] Зафиксировать target zone contract для `seat anchors`: hit radius/shape и правило приоритета над floor hit.
-- [ ] Зафиксировать, что в сценах без seat anchors seating path silently unavailable, но floor teleport остаётся рабочим.
-- [ ] Зафиксировать, что в web луч идёт из камеры через курсорную точку экрана, а не через отдельный world-space pointer объект.
-- [ ] Зафиксировать direct-switch semantics: из seated state новый valid ray action может сразу пересадить на другой seat или телепортировать пользователя.
+- [x] Описать единый runtime contract для interaction ray: activation, target resolution, highlight, confirm action и local-only visibility.
+- [x] Зафиксировать confirm contract для луча: отдельное confirm action для web и XR, не завязанное на сам факт показа луча.
+- [x] Добавить в scene bundle schema anchors contract с явным разделением минимум на `teleport floor` и `seat anchors`.
+- [x] Зафиксировать обязательные поля `seat anchor`: `id`, `position`, `yaw`, `seatHeight`, при необходимости `prompt`/`label`.
+- [x] Зафиксировать target zone contract для `seat anchors`: hit radius/shape и правило приоритета над floor hit.
+- [x] Зафиксировать, что в сценах без seat anchors seating path silently unavailable, но floor teleport остаётся рабочим.
+- [x] Зафиксировать, что в web луч идёт из камеры через курсорную точку экрана, а не через отдельный world-space pointer объект.
+- [x] Зафиксировать direct-switch semantics: из seated state новый valid ray action может сразу пересадить на другой seat или телепортировать пользователя.
 
 ### 2. Добавить authoritative seating state в room-state
 
-- [ ] Расширить `apps/room-state` модель комнаты явным seat occupancy state, а не пытаться выводить занятость только из participant snapshots.
-- [ ] Добавить сообщения/команды для `seat_claim` и `seat_release` с правилом `first claim wins`.
-- [ ] Добавить authoritative server-side path для `seat_switch` как атомарной операции или эквивалентной server-controlled последовательности без client-side race.
-- [ ] Сделать server-side reject path для конфликтного claim того же seat.
-- [ ] Освобождать seat при disconnect/leave room и при успешном switch на другой seat.
+- [x] Расширить `apps/room-state` модель комнаты явным seat occupancy state, а не пытаться выводить занятость только из participant snapshots.
+- [x] Добавить сообщения/команды для `seat_claim` и `seat_release` с правилом `first claim wins`.
+- [x] Добавить authoritative server-side path для `seat_switch` как атомарной операции или эквивалентной server-controlled последовательности без client-side race.
+- [x] Сделать server-side reject path для конфликтного claim того же seat.
+- [x] Освобождать seat при disconnect/leave room и при успешном switch на другой seat.
 - [ ] Гарантировать, что room snapshot и/или отдельные seat events восстанавливают корректную occupancy картину после reconnect/late join.
 
 ### 3. Довести client transport и avatar reliable wiring
 
-- [ ] Расширить `apps/runtime-web/src/room-state-client.ts` поддержкой seat claim/release и authoritative seat updates.
-- [ ] Не расширять unnecessarily `CompactPoseFrame`; seated state продолжает идти через reliable path.
-- [ ] Убедиться, что local publisher (`avatar-publish.ts`) продолжает публиковать `seated` и `seatId` консистентно с server-ack состоянием, а не с optimistic-only client state.
-- [ ] Зафиксировать seated publish contract: пока пользователь сидит, root/yaw публикуются от anchor pose, а не от обычного locomotion input.
-- [ ] Добавить clear rollback-to-standing path при seat claim reject.
+- [x] Расширить `apps/runtime-web/src/room-state-client.ts` поддержкой seat claim/release и authoritative seat updates.
+- [x] Не расширять unnecessarily `CompactPoseFrame`; seated state продолжает идти через reliable path.
+- [x] Убедиться, что local publisher (`avatar-publish.ts`) продолжает публиковать `seated` и `seatId` консистентно с server-ack состоянием, а не с optimistic-only client state.
+- [x] Зафиксировать seated publish contract: пока пользователь сидит, root/yaw публикуются от anchor pose, а не от обычного locomotion input.
+- [x] Добавить clear rollback-to-standing path при seat claim reject.
 - [ ] Обновить avatar diagnostics/debug state так, чтобы были видны `rayTarget`, `seatClaimState`, `seatId`, `seated`, `seatRejectReason`.
 
 ### 4. Реализовать runtime interaction ray
 
-- [ ] Вынести interaction ray logic из `main.ts` в отдельный runtime helper/module, чтобы не раздувать монолит.
-- [ ] Для WebXR добавить activation path от правого стика вверх и корректный reset/debounce, чтобы луч не флапал каждый кадр.
-- [ ] Для desktop/web добавить cursor-based ray targeting без ломания текущего look/mouse path.
-- [ ] Сделать ray local-only visual с понятным highlight для пола и для seat anchors.
-- [ ] Сделать приоритет target resolution: `seat anchor` выше floor teleport, если ray валидно попадает в anchor target zone.
+- [x] Вынести interaction ray logic из `main.ts` в отдельный runtime helper/module, чтобы не раздувать монолит.
+- [x] Для WebXR добавить activation path от правого стика вверх и корректный reset/debounce, чтобы луч не флапал каждый кадр.
+- [x] Для desktop/web добавить cursor-based ray targeting без ломания текущего look/mouse path.
+- [x] Сделать ray local-only visual с понятным highlight для пола и для seat anchors.
+- [x] Сделать приоритет target resolution: `seat anchor` выше floor teleport, если ray валидно попадает в anchor target zone.
 
 ### 5. Реализовать floor teleport main path
 
-- [ ] Добавить raycast/resolution для допустимой teleport surface в текущей сцене.
-- [ ] Зафиксировать минимальное правило teleport `v1`: teleport разрешён только на явно валидную floor surface/rule и не выполняется при invalid hit.
-- [ ] При teleport из seated state сначала корректно освободить текущий seat на сервере, затем перевести avatar в standing position на target point.
-- [ ] Обновить local avatar root/camera/player positioning так, чтобы teleport не ломал existing movement/presence path.
-- [ ] Обновить remote observation path, чтобы другие участники видели уже результат teleport как normal avatar/root update без отдельной special animation.
+- [x] Добавить raycast/resolution для допустимой teleport surface в текущей сцене.
+- [x] Зафиксировать минимальное правило teleport `v1`: teleport разрешён только на явно валидную floor surface/rule и не выполняется при invalid hit.
+- [x] При teleport из seated state сначала корректно освободить текущий seat на сервере, затем перевести avatar в standing position на target point.
+- [x] Обновить local avatar root/camera/player positioning так, чтобы teleport не ломал existing movement/presence path.
+- [x] Обновить remote observation path, чтобы другие участники видели уже результат teleport как normal avatar/root update без отдельной special animation.
 
 ### 6. Реализовать anchor seating main path
 
-- [ ] Добавить `apps/runtime-web/src/avatar/avatar-seating.ts` с чистой логикой `claim/release/apply seated transform`.
-- [ ] На успешный seat claim жёстко фиксировать local avatar относительно anchor position/yaw/seatHeight без сложной IK-посадки.
-- [ ] При active seated state отключать обычный locomotion input и обычный floor teleport move до нового valid ray action.
-- [ ] Разрешить direct switch: новый valid seat claim переводит пользователя на другой свободный seat без промежуточного ручного stand шага.
-- [ ] Разрешить exit via teleport: teleport hit из seated state освобождает старый seat и переводит пользователя в standing mode.
+- [x] Добавить `apps/runtime-web/src/avatar/avatar-seating.ts` с чистой логикой `claim/release/apply seated transform`.
+- [x] На успешный seat claim жёстко фиксировать local avatar относительно anchor position/yaw/seatHeight без сложной IK-посадки.
+- [x] При active seated state отключать обычный locomotion input и обычный floor teleport move до нового valid ray action.
+- [x] Разрешить direct switch: новый valid seat claim переводит пользователя на другой свободный seat без промежуточного ручного stand шага.
+- [x] Разрешить exit via teleport: teleport hit из seated state освобождает старый seat и переводит пользователя в standing mode.
 - [ ] Обновить remote avatar application path, чтобы seated remote avatars визуально вставали в правильную anchor pose и одинаково выглядели у всех клиентов.
 
 ### 7. Интегрировать anchors в scene loading path
 
-- [ ] Расширить `apps/runtime-web/src/scene-bundle.ts` parser и validator для новых anchor entries.
-- [ ] Расширить scene loading/runtime state так, чтобы runtime имел нормализованный список anchors для активной сцены.
-- [ ] Сделать safe path для сцен, где anchors отсутствуют или частично невалидны: seating отключается, room load не падает.
-- [ ] Сделать safe fallback при потере/невалидности уже занятого anchor после загрузки сцены: принудительный safe stand без падения runtime.
-- [ ] Подготовить минимум одну тестовую scene bundle c seat anchors для automated/staging acceptance.
-- [ ] Зафиксировать content contract для будущего добавления anchors в любую сцену без новых кодовых веток.
+- [x] Расширить `apps/runtime-web/src/scene-bundle.ts` parser и validator для новых anchor entries.
+- [x] Расширить scene loading/runtime state так, чтобы runtime имел нормализованный список anchors для активной сцены.
+- [x] Сделать safe path для сцен, где anchors отсутствуют или частично невалидны: seating отключается, room load не падает.
+- [x] Сделать safe fallback при потере/невалидности уже занятого anchor после загрузки сцены: принудительный safe stand без падения runtime.
+- [x] Подготовить минимум одну тестовую scene bundle c seat anchors для automated/staging acceptance.
+- [x] Зафиксировать content contract для будущего добавления anchors в любую сцену без новых кодовых веток.
 
 ### 8. Закрыть UX и крайние случаи
 
-- [ ] Подсвечивать только текущую valid target zone, не показывая другим участникам ни луч, ни highlight.
-- [ ] Не давать сесть на занятый seat; при server reject UI должен явно вернуть пользователя в previous valid state без зависания.
+- [x] Подсвечивать только текущую valid target zone, не показывая другим участникам ни луч, ни highlight.
+- [x] Не давать сесть на занятый seat; при server reject UI должен явно вернуть пользователя в previous valid state без зависания.
 - [ ] Late join должен сразу видеть правильный seated state уже занятых мест.
 - [ ] Reconnect seated user не должен дублировать occupancy или оставлять zombie seat lock.
-- [ ] Disconnect seated user должен освобождать seat без ручной cleanup команды от клиента.
-- [ ] Если сцена не содержит seat anchors, sit-specific UI не показывается, но floor teleport при наличии валидного пола остаётся доступным.
+- [x] Disconnect seated user должен освобождать seat без ручной cleanup команды от клиента.
+- [x] Если сцена не содержит seat anchors, sit-specific UI не показывается, но floor teleport при наличии валидного пола остаётся доступным.
 
 ### 9. Довести фазу до shippable verification
 
-- [ ] Добавить/обновить unit tests для scene anchor parsing, seat reducer/conflict logic и interaction target resolution.
+- [x] Добавить/обновить unit tests для scene anchor parsing, seat reducer/conflict logic и interaction target resolution.
 - [ ] Добавить integration tests на `two users race for same seat`, `switch seat`, `teleport while seated`, `disconnect cleanup`, `late join while seats occupied`.
-- [ ] Добавить локальный e2e на ray activation, floor teleport и sit/switch/exit базовые сценарии.
-- [ ] Прогнать локально обязательный набор: `pnpm build`, `pnpm test`, `pnpm test:e2e`.
-- [ ] После реализации выкатить изменения на staging обычным git-based flow и прогнать `pnpm test:e2e:staging`.
-- [ ] Зафиксировать staging baseline для acceptance: минимум одна сцена с anchors и одна сцена без anchors.
+- [x] Добавить локальный e2e на ray activation, floor teleport и sit/switch/exit базовые сценарии.
+- [x] Прогнать локально обязательный набор: `pnpm build`, `pnpm test`, `pnpm test:e2e`.
+- [x] После реализации выкатить изменения на staging обычным git-based flow и прогнать `pnpm test:e2e:staging`.
+- [x] Зафиксировать staging baseline для acceptance: минимум одна сцена с anchors и одна сцена без anchors.
 - [ ] На staging вручную подтвердить desktop/web и XR main path: ray visible only locally, teleport работает, seat conflicts resolve correctly, reconnect/disconnect cleanup не ломает комнату.
 
 ## Затронутые файлы/модули (если известно)
@@ -157,11 +165,11 @@
 
 ### Unit
 
-- [ ] parsing/validation scene anchors: валидный bundle проходит, битый anchor reject-ится без silent corruption.
-- [ ] interaction target resolution: `seat anchor` имеет приоритет над floor target при пересечении валидной target zone.
-- [ ] seat occupancy reducer: `claim`, `release`, `switch`, `disconnect cleanup` дают детерминированный room state.
-- [ ] conflict rule: `first claim wins`, второй claimant получает reject без порчи occupancy.
-- [ ] seated transform application: avatar получает ожидаемые `position/yaw/seatHeight` без накопления drift.
+- [x] parsing/validation scene anchors: валидный bundle проходит, битый anchor reject-ится без silent corruption.
+- [x] interaction target resolution: `seat anchor` имеет приоритет над floor target при пересечении валидной target zone.
+- [x] seat occupancy reducer: `claim`, `release`, `switch`, `disconnect cleanup` дают детерминированный room state.
+- [x] conflict rule: `first claim wins`, второй claimant получает reject без порчи occupancy.
+- [x] seated transform application: avatar получает ожидаемые `position/yaw/seatHeight` без накопления drift.
 
 ### Integration
 
@@ -175,12 +183,12 @@
 
 ### E2E
 
-- [ ] Локально: активация луча в web path, наведение на пол, teleport, наведение на seat anchor, посадка, switch seat.
+- [x] Локально: активация луча в web path, наведение на пол, teleport, наведение на seat anchor, посадка, switch seat.
 - [ ] Локально: reject path при гонке за один seat между двумя клиентами.
-- [ ] Локально: `pnpm build`.
-- [ ] Локально: `pnpm test`.
-- [ ] Локально: `pnpm test:e2e`.
-- [ ] Staging: `pnpm test:e2e:staging` после обычной выкладки.
+- [x] Локально: `pnpm build`.
+- [x] Локально: `pnpm test`.
+- [x] Локально: `pnpm test:e2e`.
+- [x] Staging: `pnpm test:e2e:staging` после обычной выкладки.
 
 ### Manual
 
@@ -192,10 +200,10 @@
 ### Негативные кейсы
 
 - [ ] Битый или неполный anchor config не валит room load; seating уходит в disabled/debuggable path.
-- [ ] Seat claim reject не оставляет клиента в pseudo-seated состоянии.
-- [ ] Disconnect seated пользователя не оставляет zombie occupancy.
+- [x] Seat claim reject не оставляет клиента в pseudo-seated состоянии.
+- [x] Disconnect seated пользователя не оставляет zombie occupancy.
 - [ ] Быстрое многократное включение/выключение луча не создаёт stuck highlight/interaction mode.
-- [ ] Частый repeat confirm не спамит `seat_claim` и не создаёт гонки из-за отсутствия debounce/cooldown.
+- [x] Частый repeat confirm не спамит `seat_claim` и не создаёт гонки из-за отсутствия debounce/cooldown.
 - [ ] Teleport в invalid point не двигает пользователя и не портит authoritative state.
 - [ ] Direct switch на уже занятый seat не снимает пользователя с текущего seat до получения валидного server ack.
 
