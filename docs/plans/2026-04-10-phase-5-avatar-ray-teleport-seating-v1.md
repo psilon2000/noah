@@ -53,6 +53,9 @@
 - Реализован и выкачен на staging основной `v1` path: interaction ray, floor teleport, anchor seating, seat switch, server-authoritative occupancy.
 - Локальные `pnpm build`, `pnpm test`, `pnpm test:e2e` и staging `pnpm test:e2e:staging` уже проходили на выкаченном SHA.
 - Локальный runtime e2e на seating/teleport сейчас опирается на debug test actions для стабильности; browser-level conflict path остаётся покрыт в `apps/room-state` tests.
+- Late-join room snapshot coverage для occupied seats уже добавлено на `apps/room-state` integration test уровне.
+- Серверный `disconnect grace` добавлен, чтобы краткий reconnect не сносил seat/participant state преждевременно.
+- Browser-level `forced room-state reconnect while seated` остаётся частично открытым: продуктовая логика улучшена, но e2e-покрытие для этого сценария пока нестабильно под shared local harness и не должно оставаться обязательным красным тестом.
 - Основной незакрытый хвост: добить более полное automated/manual покрытие на reconnect/late-join/XR и распространить anchors на нужные реальные сцены.
 
 ## Задачи (чек-лист)
